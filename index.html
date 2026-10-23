@@ -1,0 +1,1164 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Long Cast</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Silkscreen&display=swap">
+<style>
+/* Layout: one narrow column; a pixel-art dusk lake on top where the boat bobs and the line flies, cast controls and log book under it. Single committed dusk palette, square pixel UI. */
+:root{
+  --night:#151a35; --dusk:#3a2a52; --ember:#ff8f4a; --water:#12474f; --deep:#0b2a31;
+  --ink:#f4ecdc; --muted:#a9bcbc; --line:#2b5c63; --panel:#10363d; --shadow:#060f12;
+  --t1:#9fe0cf; --t2:#ffd37a; --t3:#ff9fd9; --bad:#ff7a6b;
+  --fc:#c9d6d6; --fu:#7fe0a8; --fr:#8fb8ff; --fl:#ffc94a; --fm:#ff9fd9;
+  --rainbow:linear-gradient(90deg,#ff5a5f,#ff8f4a,#ffd37a,#7fe0a8,#8fb8ff,#b48cff);
+  --display:"Pixelify Sans","Courier New",monospace;
+  --body:"Pixelify Sans",system-ui,sans-serif;
+  --mono:"Silkscreen","Courier New",monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--deep);color:var(--ink)}
+body{font-family:var(--body);font-size:17px;line-height:1.45}
+html,body{height:100%;overflow:hidden}
+/* Single-screen app: everything lives inside one fixed viewport-height frame; only the log book and help scroll internally */
+.app{position:fixed;inset:0;max-width:560px;margin:0 auto;box-sizing:border-box;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:max(10px,env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
+.app>header{flex:none}
+#archive{flex:1 1 auto;min-height:0;overflow-y:auto}
+.row.center{justify-content:center}
+.days{display:flex;flex-direction:column;gap:8px}
+.day{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--panel);color:var(--ink);font-weight:400;padding:10px 12px}
+.day .when{font-family:var(--mono);font-size:.65rem;text-transform:uppercase;color:var(--ember);flex:none;width:4.5em}
+.day .cats{flex:1;min-width:0;font-size:.9rem;line-height:1.3}
+.day .st{flex:none;font-family:var(--mono);font-size:.65rem;text-transform:uppercase}
+.day .st.play{background:var(--ember);color:var(--night);padding:3px 8px}
+.day.done .st{color:var(--fu)}
+#logBtn{white-space:nowrap}
+h1{font-size:1.8rem}
+#help,#log{flex:1 1 auto;min-height:0;overflow-y:auto}
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;max-height:calc(100% - 64px);overflow-y:auto;background:var(--panel);border:3px solid var(--shadow);box-shadow:3px 3px 0 var(--shadow);padding:12px;gap:8px;animation:sheet .35s steps(5)}
+@keyframes sheet{from{transform:translateY(40%);opacity:0}}
+.sheet h2{font-size:1.3rem}
+.sheet .catch{box-shadow:none;padding:8px}
+.sheet .catch canvas{width:112px}
+.sheet .chips{max-height:4.4em;overflow-y:auto}
+.sheet .big{font-size:2.6rem}
+.sheet pre{font-size:.65rem;padding:8px}
+.sheet .row button{padding:8px 12px;font-size:.95rem}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:700;font-size:2.1rem;margin:0;color:var(--ember);text-shadow:3px 3px 0 var(--shadow)}
+.date{font-family:var(--mono);font-size:.7rem;color:var(--muted);text-transform:uppercase}
+canvas{image-rendering:crisp-edges;image-rendering:pixelated}
+.scene{position:relative;flex:1 1 auto;min-height:120px;border:3px solid var(--shadow);box-shadow:4px 4px 0 var(--shadow);overflow:hidden}
+canvas#sea{display:block;width:100%;height:100%}
+.overlay{position:absolute;left:0;right:0;top:52%;display:flex;flex-direction:column;align-items:center;gap:12px;padding-inline:16px}
+.overlay .cta{align-self:center;font-size:1.35rem;padding:12px 24px}
+.overlay .tag{font-family:var(--mono);font-size:.7rem;color:var(--ink);text-shadow:2px 2px 0 var(--shadow);margin:0}
+.hud{position:absolute;top:6px;left:8px;right:8px;display:flex;justify-content:space-between;align-items:flex-start;font-family:var(--mono);font-size:.7rem;pointer-events:none}
+#distLabel{font-size:1.2rem;color:var(--ink);font-variant-numeric:tabular-nums;text-shadow:2px 2px 0 var(--shadow);display:inline-block;transform-origin:left center}
+#distLabel.bump{animation:bump .35s steps(4)}
+@keyframes bump{40%{transform:scale(1.3);color:var(--ember)}}
+#castLabel{color:var(--ink);text-shadow:2px 2px 0 var(--shadow)}
+#gust{position:absolute;top:26px;right:8px;font-family:var(--mono);font-size:.65rem;background:var(--ember);color:var(--night);padding:2px 6px;box-shadow:2px 2px 0 var(--shadow);animation:blink .5s steps(2) infinite}
+@keyframes blink{50%{opacity:.6}}
+#ruler{position:absolute;left:0;right:0;bottom:2px;height:12px;pointer-events:none}
+#ruler span{position:absolute;transform:translateX(-50%);font-family:var(--mono);font-size:.55rem;color:var(--muted);text-shadow:1px 1px 0 var(--shadow)}
+#pops{position:absolute;inset:0;pointer-events:none}
+.pop{position:absolute;font-family:var(--mono);font-size:.85rem;animation:rise 1.2s steps(12) forwards;text-shadow:2px 2px 0 var(--shadow);white-space:nowrap;transform:translateX(-50%)}
+.pop.r3{font-size:1.05rem}
+@keyframes rise{0%{opacity:0;margin-top:6px}10%{opacity:1;margin-top:0}100%{opacity:0;margin-top:-40px}}
+.panel{display:flex;flex-direction:column;gap:12px}
+.lede{font-size:1.15rem;margin:0}
+.rules{margin:0;padding-left:1.1em;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.rules b{color:var(--ink)}
+.c1{color:var(--t1)}.c2{color:var(--t2)}.c3{color:var(--t3)}
+.eyebrow{font-family:var(--mono);font-size:.7rem;text-transform:uppercase;color:var(--ember);margin:0}
+h2{font-family:var(--display);font-weight:700;font-size:1.75rem;line-height:1.1;margin:2px 0 0;text-wrap:balance}
+.hint{margin:0;color:var(--muted);font-size:.95rem}
+.timerrow{display:flex;align-items:center;gap:10px}
+.timer{flex:1;height:12px;background:var(--panel);border:2px solid var(--shadow);overflow:hidden}
+#bar{height:100%;width:100%;background:var(--ember);transform-origin:left}
+.timerrow.low #bar{background:var(--bad);animation:blink .4s steps(2) infinite}
+.timerrow.low #secs{color:var(--bad)}
+#secs{font-family:var(--mono);font-variant-numeric:tabular-nums;width:3ch;text-align:right}
+.typed{display:flex;align-items:center;min-height:48px;padding:6px 12px;font-size:1.3rem;border:3px solid var(--shadow);background:var(--panel);box-shadow:inset 3px 3px 0 #0003;overflow:hidden;white-space:nowrap}
+.typed.empty::before{content:"Tap letters, then Blow";color:var(--muted);font-size:1rem;order:2;margin-left:8px}
+.typed .caret{order:1}
+.typed.taut{border-color:var(--t2)}
+.typed.shake{animation:shake .3s steps(4);border-color:var(--bad)}
+.typed.good{animation:good .4s steps(3)}
+.caret{display:inline-block;width:10px;height:1.1em;background:var(--ember);margin-left:2px;animation:blink 1s steps(2) infinite}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@keyframes good{40%{border-color:var(--t1);background:#1c4c4f}}
+.kb{display:flex;flex-direction:column;gap:6px;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.kb .r{display:flex;gap:4px;justify-content:center}
+.kb button{flex:1 1 0;min-width:0;height:46px;padding:0;font-size:1.05rem;text-transform:uppercase;background:#2b5c63;color:var(--ink);box-shadow:0 3px 0 var(--shadow);border:2px solid var(--shadow);-webkit-tap-highlight-color:transparent}
+.kb button:active,.kb button.down{transform:translateY(3px);box-shadow:none;background:#3d7a82}
+.kb .wide{flex:1.6 1 0;font-size:.85rem}
+.kb .blow{background:var(--ember);color:var(--night)}
+.kb .space{flex:4 1 0;font-size:.8rem}
+.kb .r:last-child .blow{flex:2 1 0}
+.kb.off{opacity:.45;pointer-events:none}
+button{font:inherit;font-weight:700;cursor:pointer;border:3px solid var(--shadow);border-radius:0;padding:10px 16px;background:var(--ember);color:var(--night);box-shadow:3px 3px 0 var(--shadow)}
+button:active{transform:translate(3px,3px);box-shadow:none}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+button:disabled{opacity:.5;cursor:default}
+.cta{font-size:1.1rem;align-self:flex-start}
+.ghost{background:var(--panel);color:var(--ink)}
+.small{padding:6px 10px;font-size:.9rem}
+.msg{min-height:1.6em;font-size:.95rem;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.msg.bad{color:var(--bad)}
+.appeal{padding:2px 8px;font-size:.8rem;background:var(--panel);color:var(--ink);box-shadow:2px 2px 0 var(--shadow);border-width:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:.9rem;padding:2px 8px;background:var(--panel);border:2px solid var(--shadow);animation:chipin .3s steps(3)}
+.chip.t3{border-color:var(--t3)}
+@keyframes chipin{from{transform:scale(.4);opacity:0}}
+.chip b{font-family:var(--mono);font-weight:400;font-size:.65rem;margin-left:6px}
+.stats{margin:0;color:var(--muted)}
+.catch{display:flex;gap:14px;align-items:center;background:var(--panel);border:3px solid var(--shadow);box-shadow:3px 3px 0 var(--shadow);padding:10px;animation:chipin .4s steps(4)}
+.catch canvas{width:144px;flex:none}
+.catch .meta{min-width:0;display:flex;flex-direction:column;gap:2px}
+.catch .name{font-family:var(--display);font-weight:700;font-size:1.4rem;line-height:1.1}
+.badge{align-self:flex-start;font-family:var(--mono);font-size:.6rem;text-transform:uppercase;padding:2px 6px;background:var(--t2);color:var(--night)}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.badge.r-c{background:var(--fc)}.badge.r-u{background:var(--fu)}.badge.r-r{background:var(--fr)}.badge.r-l{background:var(--fl)}.badge.r-m{background:var(--rainbow);color:var(--night)}
+.badge.lucky{background:var(--t3)}.badge.new{background:var(--ink)}
+.catch.r-u{border-color:var(--fu)}.catch.r-r{border-color:var(--fr)}.catch.r-l{border-color:var(--fl);animation:chipin .4s steps(4),glow 1s steps(2) infinite}
+.catch.r-m,.haul div.r-m,.page.r-m:not(.locked){border-image:var(--rainbow) 1}
+.catch.r-m{animation:chipin .4s steps(4),hue 2s steps(12) infinite}
+@keyframes hue{to{filter:hue-rotate(360deg)}}
+.tierhead.r-m{border-image:var(--rainbow) 1}.tierhead.r-m b{background:var(--rainbow);-webkit-background-clip:text;background-clip:text;color:transparent}
+.haul .tier.r-m{color:var(--fm)}
+@keyframes glow{50%{box-shadow:3px 3px 0 var(--shadow),0 0 0 3px var(--fl)}}
+.tierhead{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;gap:8px;border-bottom:3px solid var(--fc);padding-bottom:2px;margin-top:6px}
+.tierhead b{font-family:var(--display);font-size:1.2rem}.tierhead span{font-family:var(--mono);font-size:.6rem;color:var(--muted)}
+.tierhead.r-c{border-color:var(--fc)}.tierhead.r-u{border-color:var(--fu)}.tierhead.r-r{border-color:var(--fr)}.tierhead.r-l{border-color:var(--fl)}
+.tierhead.r-u b{color:var(--fu)}.tierhead.r-r b{color:var(--fr)}.tierhead.r-l b{color:var(--fl)}
+.page.r-u:not(.locked){border-color:var(--fu)}.page.r-r:not(.locked){border-color:var(--fr)}
+.big{font-family:var(--display);font-weight:700;font-size:3.4rem;line-height:1;color:var(--ember);text-shadow:4px 4px 0 var(--shadow)}
+.compare{display:flex;flex-direction:column;gap:6px;border-top:3px solid var(--shadow);padding-top:10px}
+.compare .pct{margin:0;font-size:1.05rem}.compare .pct b{font-family:var(--display);font-size:1.5rem;color:var(--ember)}
+.compare .hist{width:100%;height:auto;aspect-ratio:120/34}
+.compare .axis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.55rem;color:var(--muted);margin-top:-4px}
+table.cmp{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.9rem}
+.cmp th{font-family:var(--mono);font-weight:400;font-size:.55rem;text-transform:uppercase;color:var(--muted);text-align:right;padding:2px 0 4px}
+.cmp th:first-child,.cmp td:first-child{text-align:left}
+.cmp td{padding:4px 0;border-top:2px solid var(--shadow);text-align:right;white-space:nowrap}
+.cmp td:first-child{white-space:normal;padding-right:8px}
+.cmp td.up{color:var(--fu)}.cmp td.top{color:var(--fl)}.cmp td.down{color:var(--muted)}
+.cmp tr.tot td{font-weight:700;border-top:3px solid var(--line)}
+.haul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.haul div{background:var(--panel);border:3px solid var(--shadow);padding:8px;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;min-width:0}
+.haul div{position:relative}
+.haul div.r-u{border-color:var(--fu)}.haul div.r-r{border-color:var(--fr)}.haul div.r-l{border-color:var(--fl)}
+.haul .tier{font-family:var(--mono);font-size:.55rem;text-transform:uppercase}
+.haul .tier.r-c{color:var(--fc)}.haul .tier.r-u{color:var(--fu)}.haul .tier.r-r{color:var(--fr)}.haul .tier.r-l{color:var(--fl)}
+.haul .bestTag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:.55rem;text-transform:uppercase;white-space:nowrap;background:var(--ember);color:var(--night);padding:1px 5px;box-shadow:2px 2px 0 var(--shadow)}
+.haul canvas{width:100%;max-width:108px}
+.haul .n{font-weight:700;font-size:.95rem}
+.haul .d{font-family:var(--mono);font-size:.6rem;color:var(--muted)}
+pre{font-family:var(--mono);font-size:.75rem;background:var(--panel);border:3px solid var(--shadow);padding:12px;margin:0;white-space:pre-wrap;user-select:all}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.note{font-size:.85rem;color:var(--muted);margin:0}
+.loghead{display:flex;justify-content:space-between;align-items:end;gap:12px}
+.progress{height:12px;background:var(--panel);border:2px solid var(--shadow)}
+.progress div{height:100%;background:var(--ember)}
+.book{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.page{background:var(--panel);border:3px solid var(--shadow);padding:8px;display:flex;flex-direction:column;gap:2px}
+.page canvas{width:100%}
+.page .n{font-weight:700}
+.page .d{font-family:var(--mono);font-size:.6rem;color:var(--muted)}
+.page.locked .n{color:var(--muted)}
+.page.r-l:not(.locked){border-color:var(--fl)}
+.cattag{display:none;position:absolute;top:30px;left:0;right:0;flex-direction:column;align-items:center;text-align:center;pointer-events:none;padding-inline:12px}
+.cattag b{font-family:var(--display);font-weight:700;font-size:1.3rem;line-height:1.1;text-shadow:2px 2px 0 var(--shadow)}
+.cattag span{font-size:.8rem;color:var(--ink);text-shadow:1px 1px 0 var(--shadow)}
+.app.playing{gap:8px}
+.app.playing header,.app.playing .catblock,.app.playing #chips{display:none}
+.app.playing .cattag{display:flex}
+.app.playing .msg{min-height:1.4em;font-size:.85rem;flex-wrap:nowrap;overflow:hidden;white-space:nowrap}
+.app.playing #play{flex:none;gap:8px}
+.banner{position:absolute;left:50%;top:38%;display:flex;flex-direction:column;align-items:center;pointer-events:none;white-space:nowrap;animation:banner 1.8s steps(18) forwards}
+.banner b{font-family:var(--display);font-weight:700;font-size:2rem;line-height:1;color:var(--t2);text-shadow:3px 3px 0 var(--shadow)}
+.banner span{font-family:var(--mono);font-size:.7rem;color:var(--ink);text-shadow:2px 2px 0 var(--shadow);margin-top:4px}
+.banner.zone b{color:var(--t3)}
+@keyframes banner{0%{opacity:0;transform:translateX(-50%) scale(.4)}10%{opacity:1;transform:translateX(-50%) scale(1.2)}18%{transform:translateX(-50%) scale(1)}80%{opacity:1;transform:translateX(-50%)}100%{opacity:0;transform:translateX(-50%) translateY(-24px)}}
+.app.playing #distLabel{font-size:1.7rem}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+
+<div class="app" id="app">
+  <header>
+    <div class="brand"><h1>Long Cast</h1><span class="date" id="dateLabel">Mon 19 Oct</span></div>
+    <button id="logBtn" class="ghost small" type="button">Log book</button>
+  </header>
+
+  <div class="scene">
+    <canvas id="sea" width="200" height="160" aria-label="A pixel-art angler in a boat on a lake at dusk"></canvas>
+    <div class="hud"><span id="distLabel">0 m</span><span id="castLabel">3 casts today</span></div>
+    <div id="gust" hidden>Tailwind ×1.5</div>
+    <div id="ruler"></div>
+    <div id="pops"></div>
+    <div class="cattag"><b id="tagName"></b><span id="tagHint"></span></div>
+    <section id="between" class="panel sheet" hidden>
+      <p class="eyebrow" id="bEyebrow"></p>
+      <div id="bCatch"></div>
+      <h2 id="bTitle"></h2>
+      <p class="stats" id="bStats"></p>
+      <div id="bChips" class="chips"></div>
+      <p class="stats" id="bRare"></p>
+      <button id="next" class="cta">Next cast</button>
+    </section>
+    <section id="final" class="panel sheet" hidden>
+      <p class="eyebrow" id="fEyebrow">Today's haul</p>
+      <div class="big" id="fTotal"></div>
+      <div class="haul" id="fHaul"></div>
+      <div id="compare" class="compare"></div>
+      <pre id="share"></pre>
+      <div class="row"><button id="copy">Copy result</button><button id="openLog" class="ghost">Log book</button><button id="pastBtn2" class="ghost">Past puzzles</button><button id="todayBtn" class="ghost" hidden>Today's puzzle</button></div>
+      <p class="note" id="nextIn"></p>
+      
+    </section>
+    <div id="overlay" class="overlay">
+      <button id="start" class="cta">Cast the line</button>
+      <div class="row center"><button id="pastBtn" class="ghost small" type="button">Past puzzles</button><button id="helpBtn" class="ghost small" type="button">How to play</button></div>
+      <p class="tag">Today: 3 casts</p>
+    </div>
+  </div>
+
+  <section id="help" class="panel" hidden>
+    <div class="loghead"><div><p class="eyebrow">How to play</p><h2>Cast with words</h2></div><button id="closeHelp" class="ghost small" type="button">Back</button></div>
+    <p class="lede">Three casts, one category each. Every answer you name sends a gust of wind that carries your line further out. Reel in at the end and see what bit.</p>
+    <ul class="rules">
+      <li><b class="c1">Common</b> answers are a breeze: +25 m. <b class="c2">Uncommon</b> is a wind: +45 m. <b class="c3">Rare</b> is a gale: +80 m.</li>
+      <li>Land 3 answers within 6 seconds to catch a tailwind: ×1.5 for 5 seconds.</li>
+      <li>Wrong or repeated answers tangle the line and cost you time.</li>
+      <li>Further casts reach rarer fish: common, uncommon, rare, then legendary. Any cast can get a lucky bite, so keep filling your log book.</li>
+    </ul>
+  </section>
+
+  <section id="play" class="panel" hidden>
+    <div class="catblock">
+      <p class="eyebrow" id="castNo">Cast 1 of 3</p>
+      <h2 id="catName"></h2>
+      <p class="hint" id="catHint"></p>
+    </div>
+    <div class="timerrow" id="timerrow"><div class="timer"><div id="bar"></div></div><span id="secs">40</span></div>
+    <div id="msg" class="msg"></div>
+    <div id="typed" class="typed empty" aria-live="polite"><span id="typedText"></span><i class="caret"></i></div>
+    <div id="kb" class="kb" aria-label="Keyboard"></div>
+    <div id="chips" class="chips"></div>
+  </section>
+
+
+
+  <section id="archive" class="panel" hidden>
+    <div class="loghead">
+      <div><p class="eyebrow">Past puzzles</p><h2>Earlier days</h2></div>
+      <button id="closeArchive" class="ghost small" type="button">Back</button>
+    </div>
+    <p class="hint">Each day can be played once. Fish you catch go in your log book. Archive rounds are compared with that day's anglers but don't change their results.</p>
+    <div id="days" class="days"></div>
+  </section>
+
+  <section id="log" class="panel" hidden>
+    <div class="loghead">
+      <div><p class="eyebrow">Log book</p><h2 id="logCount"></h2></div>
+      <button id="closeLog" class="ghost small" type="button">Back</button>
+    </div>
+    <div class="progress"><div id="logBar"></div></div>
+    <p class="hint">Grey fish are still out there. Longer casts reach rarer fish, and any cast can land a lucky bite from a rarer tier.</p>
+    <div class="book" id="book"></div>
+  </section>
+</div>
+
+<script>
+let DAY = {
+  id: "2026-10-19", label: "19 Oct",
+  casts: [
+    { cat: "Car brands", hint: "Any make, current or defunct",
+      c: ["Toyota","Honda","Ford","BMW","Audi","Mercedes|mercedes benz|benz","Tesla","Hyundai","Kia","Nissan","Volkswagen|vw","Chevrolet|chevy","Suzuki|maruti|maruti suzuki","Tata","Mahindra","Ferrari","Lamborghini|lambo","Porsche"],
+      u: ["Mazda","Subaru","Mitsubishi","Lexus","Jeep","Volvo","Jaguar","Land Rover|range rover","Mini","Fiat","Renault","Peugeot","Skoda","Dodge","Cadillac","Buick","GMC","Chrysler","Bentley","Rolls-Royce|rolls royce","Maserati","Bugatti","Aston Martin","McLaren","Alfa Romeo","Citroen","Opel","Seat","Infiniti","Acura","Lincoln","Genesis","BYD","MG","Rivian","Polestar","Ram","Datsun","Smart"],
+      r: ["Lucid","Koenigsegg","Pagani","Lotus","Dacia","Cupra","DS","Lada","Saab","Pontiac","Hummer","Geely","Nio","Xpeng","Chery","Great Wall","Haval","Proton","Perodua","Holden","Scion","Oldsmobile","Plymouth","Alpine","Morgan","Rimac","SsangYong","Isuzu","Hindustan Motors|hindustan|ambassador","Force Motors|force","VinFast","Togg","Zeekr","Li Auto","Lancia","Abarth","TVR","Spyker","Fisker","Maybach","Hongqi"] },
+    { cat: "Countries in Africa", hint: "All 54 are on the list",
+      c: ["Egypt","Nigeria","South Africa","Kenya","Ethiopia","Morocco","Ghana","Algeria","Tanzania","Uganda","Zimbabwe","Sudan","Libya","Tunisia","Somalia"],
+      u: ["Senegal","Cameroon","Angola","Mozambique","Madagascar","Zambia","Rwanda","Namibia","Botswana","Mali","Niger","Chad","Ivory Coast|cote d'ivoire|cote divoire","Sierra Leone","Liberia","South Sudan","Eritrea","Malawi","Gambia|the gambia","Burkina Faso","Guinea","Benin","Togo","Gabon","Mauritania","Mauritius","Seychelles","Cape Verde|cabo verde","DR Congo|drc|democratic republic of the congo|democratic republic of congo|congo kinshasa|zaire","Republic of the Congo|congo|congo brazzaville|republic of congo"],
+      r: ["Lesotho","Eswatini|swaziland","Djibouti","Comoros","Sao Tome and Principe|sao tome","Equatorial Guinea","Guinea-Bissau|guinea bissau","Burundi","Central African Republic|car"] },
+    { cat: "Kinds of fish", hint: "Sharks and rays count. Whales do not.",
+      c: ["Salmon","Tuna","Cod","Trout","Catfish","Goldfish","Shark","Carp","Sardine","Mackerel","Tilapia","Bass","Clownfish","Swordfish","Herring","Anchovy","Pomfret","Rohu","Hilsa|ilish"],
+      u: ["Halibut","Haddock","Pike","Perch","Snapper","Grouper","Mahi-mahi|mahi mahi|dorado","Marlin","Barracuda","Eel","Piranha","Betta","Guppy","Koi","Angelfish","Pufferfish|puffer|blowfish|fugu","Flounder","Sole","Sturgeon","Anglerfish","Seahorse","Stingray|ray","Manta ray|manta","Whale shark","Hammerhead","Tarpon","Walleye","Bluegill","Sailfish","Sea bass","Cobia","Kingfish|seer|seer fish","Lionfish","Mullet","Wahoo","Catla","Mrigal","Bombay duck"],
+      r: ["Arapaima","Coelacanth","Oarfish","Sunfish|mola mola|mola|ocean sunfish","Lamprey","Hagfish","Gar","Bowfin","Paddlefish","Wrasse","Tetra","Molly","Discus","Oscar","Arowana","Mudskipper","Lungfish","Snakehead","Char","Grayling","John Dory|dory","Monkfish","Turbot","Pollock","Whiting","Skate","Remora","Triggerfish","Parrotfish","Tang","Goby","Blenny","Tilefish","Opah","Barramundi","Milkfish","Pangasius","Murrel","Mahseer"] }
+  ]
+};
+const PTS={1:25,2:45,3:80}, WIND=["","breeze","wind","gale"];
+const CAST_SECS=40;
+
+// Fish by rarity tier: c common, u uncommon, r rare, l legendary
+const FISH=[
+  {id:"minnow",tier:"c",name:"Minnow",cm:[5,10],h:.28,c:"#8aa39b",b:"#d8e2d0",tail:"fork",dorsal:"low"},
+  {id:"guppy",tier:"c",name:"Guppy",cm:[3,6],h:.3,c:"#7fb8a4",b:"#e9e1c6",tail:"fan",tc:"#ff7ab8",dorsal:"low",fin:"#ffb347"},
+  {id:"sardine",tier:"c",name:"Sardine",cm:[12,22],h:.22,c:"#5f86a6",b:"#e2e8ee",tail:"fork",dorsal:"low",lat:"#9fb8cc"},
+  {id:"perch",tier:"c",name:"Perch",cm:[15,35],h:.36,c:"#7d9a3c",b:"#f0d27a",tail:"fork",dorsal:"spiky",fin:"#ff8f4a",bars:"#2f3d1e"},
+  {id:"bluegill",tier:"c",name:"Bluegill",cm:[12,25],h:.55,c:"#4c6a8a",b:"#f3a64a",tail:"round",dorsal:"low",bars:"#36506c"},
+  {id:"carp",tier:"c",name:"Common Carp",cm:[30,80],h:.36,c:"#8a7a3c",b:"#e6cf8a",tail:"fork",dorsal:"long",fin:"#7a5a2a"},
+  {id:"trout",tier:"u",name:"Rainbow Trout",cm:[30,60],h:.28,c:"#6d8a6a",b:"#f2d6c9",tail:"square",dorsal:"low",lat:"#ff8fa3",spots:"#2a3a2a"},
+  {id:"bass",tier:"u",name:"Largemouth Bass",cm:[30,60],h:.34,c:"#4f6b3a",b:"#e4e0b8",tail:"round",dorsal:"spiky",lat:"#2e3f22"},
+  {id:"salmon",tier:"u",name:"Salmon",cm:[60,100],h:.28,c:"#5f7f99",b:"#f2c6b4",tail:"fork",dorsal:"low",spots:"#2b3b4a"},
+  {id:"pike",tier:"u",name:"Northern Pike",cm:[60,120],h:.19,c:"#5d7343",b:"#e8e4b5",tail:"round",dorsal:"back",spots:"#e8e4b5"},
+  {id:"catfish",tier:"u",name:"Catfish",cm:[40,130],h:.24,c:"#5a5040",b:"#cfc2a0",tail:"round",dorsal:"low",spots:"#3a3328"},
+  {id:"clownfish",tier:"u",name:"Clownfish",cm:[7,11],h:.42,c:"#ff8a3d",b:"#ffb070",tail:"round",dorsal:"spiky",fin:"#ff8a3d",bars:"#ffffff"},
+  {id:"puffer",tier:"u",name:"Pufferfish",cm:[10,40],h:.7,c:"#c8b46a",b:"#f2ecd0",tail:"fan",dorsal:"low",spots:"#5a4a2a"},
+  {id:"tuna",tier:"r",name:"Bluefin Tuna",cm:[120,250],h:.34,c:"#20375e",b:"#cfd8e2",tail:"crescent",dorsal:"tall",fin:"#f4c542"},
+  {id:"mahi",tier:"r",name:"Mahi-mahi",cm:[80,150],h:.34,c:"#2f9e76",b:"#f2d13b",tail:"fork",dorsal:"long",fin:"#2a7fb8",spots:"#1d6f8a"},
+  {id:"swordfish",tier:"r",name:"Swordfish",cm:[150,300],h:.24,c:"#3c4f63",b:"#b9c3cc",tail:"crescent",dorsal:"tall",bill:1},
+  {id:"barracuda",tier:"r",name:"Barracuda",cm:[60,180],h:.16,c:"#7b8c98",b:"#e8eef2",tail:"fork",dorsal:"back",bars:"#3f4c56"},
+  {id:"koi",tier:"r",name:"Koi",cm:[40,90],h:.3,c:"#f2f0ea",b:"#ffffff",tail:"fan",tc:"#ff7a3d",dorsal:"long",fin:"#ff7a3d",spots:"#ff5a2a"},
+  {id:"lionfish",tier:"r",name:"Lionfish",cm:[20,40],h:.4,c:"#c8503a",b:"#f2d6c0",tail:"fan",dorsal:"spiky",fin:"#f2d6c0",bars:"#f6e8d8"},
+  {id:"marlin",tier:"l",name:"Blue Marlin",cm:[200,400],h:.26,c:"#1f3f7a",b:"#dfe7f0",tail:"crescent",dorsal:"sail",bill:1,bars:"#7fb0e8"},
+  {id:"coelacanth",tier:"l",name:"Coelacanth",cm:[150,200],h:.32,c:"#3b5c86",b:"#5d7aa0",tail:"round",dorsal:"low",spots:"#e9eef5"},
+  {id:"oarfish",tier:"l",name:"Oarfish",cm:[300,800],h:.1,c:"#c9ccd6",b:"#eceef3",tail:"fork",dorsal:"long",fin:"#e84a4a"},
+  {id:"arowana",tier:"l",name:"Golden Arowana",cm:[60,90],h:.26,c:"#e8b23a",b:"#ffe08a",tail:"round",dorsal:"back",spots:"#b8862a"},
+  {id:"ghostshark",tier:"l",name:"Ghost Shark",cm:[60,150],h:.2,c:"#d8dde6",b:"#f4f6fa",tail:"fork",dorsal:"tall",fin:"#a9b4c6"},
+  {id:"prismfin",tier:"m",name:"Prismfin",cm:[90,140],h:.34,c:"#ff5a5f",b:"#ffffff",tail:"fan",tc:"#b48cff",dorsal:"sail",fin:"#8fb8ff",rainbow:1},
+];
+const TIERS=["c","u","r","l","m"], TIERNAME={c:"Common",u:"Uncommon",r:"Rare",l:"Legendary",m:"Mythic"};
+// Mythic: one fish, rolled before anything else. A tiny chance on any cast, rising to ~0.45% on 500 m+ casts.
+const mythicChance=d=>d<=0?0:.0005+.004*clamp((d-500)/300,0,1);
+// Each tier peaks at a distance and overlaps only its neighbours: common+uncommon, uncommon+rare, rare+legendary.
+const TIER_PEAK=[0,200,400,600], TIER_W=200; // a solid ~300 m cast reaches rare fish
+function tierWeights(d){return TIER_PEAK.map((c,i)=>i===3&&d>=c?1:Math.max(0,1-Math.abs(d-c)/TIER_W));}
+function pickFish(d){
+  if(d<=0) return null;
+  if(Math.random()<mythicChance(d)){const f=FISH.find(x=>x.tier==="m");return {f,lucky:false,cm:Math.round(f.cm[0]+(f.cm[1]-f.cm[0])*Math.random())};}
+  const w=tierWeights(d); let r=Math.random()*w.reduce((a,b)=>a+b,0), t=0;
+  while(t<3&&r>w[t]){r-=w[t];t++;}
+  // luck: any cast can roll up a tier (or two), so a bad day can still fill the log book
+  let lucky=0; const L=Math.random(); if(L<.03) lucky=2; else if(L<.14) lucky=1;
+  t=Math.min(3,t+lucky);
+  const pool=FISH.filter(f=>f.tier===TIERS[t]), fresh=pool.filter(f=>!LOG[f.id]);
+  const from=fresh.length&&Math.random()<.6?fresh:pool, f=from[Math.floor(Math.random()*from.length)];
+  const k=clamp((d-TIER_PEAK[t]+TIER_W)/(2*TIER_W),0,1);
+  return {f,lucky:lucky>0,cm:Math.round(f.cm[0]+(f.cm[1]-f.cm[0])*(.15+.45*k+.4*Math.random()))};
+}
+
+// ---------- fish drawing (faces right), then pixelated into sprites ----------
+function drawFish(c,sp,cx,cy,L,ghost){
+  const H=L*sp.h, nose=cx+L/2, tj=cx-L/2+L*.16, G="#24525a";
+  const fill=col=>c.fillStyle=ghost?G:col;
+  c.save();
+  fill(sp.tc||sp.fin||sp.c); c.beginPath();
+  const tl=L*.2, th=Math.max(H,L*.16)*(sp.tail==="crescent"?1.3:sp.tail==="fan"?1.5:.95);
+  if(sp.tail==="fork"){c.moveTo(tj+3,cy);c.lineTo(tj-tl,cy-th/2);c.lineTo(tj-tl*.55,cy);c.lineTo(tj-tl,cy+th/2);}
+  else if(sp.tail==="crescent"){c.moveTo(tj+3,cy);c.quadraticCurveTo(tj-tl*.4,cy-th*.15,tj-tl,cy-th*.55);c.quadraticCurveTo(tj-tl*.45,cy,tj-tl,cy+th*.55);c.quadraticCurveTo(tj-tl*.4,cy+th*.15,tj+3,cy);}
+  else if(sp.tail==="square"){c.moveTo(tj+3,cy-H*.12);c.lineTo(tj-tl,cy-th/2);c.lineTo(tj-tl*.9,cy);c.lineTo(tj-tl,cy+th/2);c.lineTo(tj+3,cy+H*.12);}
+  else {c.moveTo(tj+3,cy-H*.12);c.quadraticCurveTo(tj-tl*1.3,cy-th*.6,tj-tl,cy);c.quadraticCurveTo(tj-tl*1.3,cy+th*.6,tj+3,cy+H*.12);}
+  c.closePath(); c.fill();
+  fill(sp.fin||sp.c); c.beginPath();
+  if(sp.dorsal==="tall"){c.moveTo(cx-L*.04,cy-H*.4);c.lineTo(cx+L*.03,cy-H*1.05);c.lineTo(cx+L*.12,cy-H*.42);}
+  else if(sp.dorsal==="sail"){c.moveTo(cx-L*.26,cy-H*.32);c.quadraticCurveTo(cx-L*.05,cy-H*1.7,cx+L*.22,cy-H*.42);}
+  else if(sp.dorsal==="long"){c.moveTo(tj+L*.04,cy-H*.2);c.quadraticCurveTo(cx,cy-H*1.05,nose-L*.14,cy-H*.75);c.lineTo(nose-L*.1,cy-H*.4);}
+  else if(sp.dorsal==="spiky"){c.moveTo(cx-L*.18,cy-H*.38);for(let i=0;i<5;i++){c.lineTo(cx-L*.15+i*L*.06,cy-H*.85);c.lineTo(cx-L*.12+i*L*.06,cy-H*.45);}}
+  else if(sp.dorsal==="back"){c.moveTo(tj+L*.02,cy-H*.3);c.quadraticCurveTo(tj+L*.08,cy-H*.9,tj+L*.16,cy-H*.4);}
+  else {c.moveTo(cx-L*.1,cy-H*.42);c.quadraticCurveTo(cx-L*.02,cy-H*.85,cx+L*.12,cy-H*.45);}
+  c.closePath(); c.fill();
+  c.beginPath(); c.moveTo(nose,cy);
+  c.bezierCurveTo(nose-L*.12,cy-H*.62,tj+L*.15,cy-H*.58,tj,cy-H*.13); c.lineTo(tj,cy+H*.13);
+  c.bezierCurveTo(tj+L*.15,cy+H*.58,nose-L*.12,cy+H*.62,nose,cy); c.closePath();
+  if(ghost){c.fillStyle=G;c.fill();c.restore();return;}
+  c.fillStyle=sp.b; c.fill();
+  c.save(); c.clip();
+  if(sp.rainbow){const R=["#ff5a5f","#ff8f4a","#ffd37a","#7fe0a8","#8fb8ff","#b48cff"];R.forEach((col,i)=>{c.fillStyle=col;c.fillRect(tj-2,cy-H/2+i*H/6-1,L+4,H/6+1);});}
+  else {c.fillStyle=sp.c; c.fillRect(tj-2,cy-H,L,H*.95);}
+  if(sp.bars){c.fillStyle=sp.bars;for(let i=0;i<6;i++)c.fillRect(tj+L*.1+i*L*.1,cy-H,Math.max(1,L*.035),H*1.1);}
+  if(sp.lat){c.fillStyle=sp.lat;c.fillRect(tj,cy-H*.06,L,Math.max(1,H*.14));}
+  if(sp.spots){c.fillStyle=sp.spots;for(let i=0;i<14;i++){const sx=tj+((i*37)%100)/100*L*.7,sy=cy-H*.4+((i*53)%100)/100*H*.55;c.fillRect(sx|0,sy|0,Math.max(1,H*.08|0),Math.max(1,H*.08|0));}}
+  c.restore();
+  if(sp.bill){c.strokeStyle=sp.c;c.lineWidth=Math.max(1.2,H*.09);c.beginPath();c.moveTo(nose-2,cy-H*.04);c.lineTo(nose+L*.32,cy-H*.12);c.stroke();}
+  const ex=Math.round(nose-L*.11), ey=Math.round(cy-H*.14), es=Math.max(1,Math.round(L*.04));
+  c.fillStyle="#fff"; c.fillRect(ex-es,ey-es,es*2,es*2);
+  c.fillStyle="#111"; c.fillRect(ex,ey-es+ (es>1?1:0),es,es);
+  c.restore();
+}
+const spriteCache=new Map();
+function sprite(sp,L,ghost){
+  const key=sp.id+"|"+L+"|"+(ghost?1:0); if(spriteCache.has(key)) return spriteCache.get(key);
+  const H=L*sp.h, tailHalf=Math.max(H,L*.16)*(sp.tail==="crescent"?1.3:sp.tail==="fan"?1.5:.95)*.6;
+  const up=Math.max(sp.dorsal==="sail"?H*1.75:sp.dorsal==="tall"?H*1.1:H*.9, tailHalf), down=Math.max(H*.6,tailHalf);
+  const w=Math.ceil(L*.64+L*.5+(sp.bill?L*.34:0))+4, h=Math.ceil(up+down)+4;
+  const cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+  const c=cv.getContext("2d"); drawFish(c,sp,L*.64+2,up+2,L,ghost);
+  const img=c.getImageData(0,0,w,h), d=img.data, on=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++){ if(d[i*4+3]>110){d[i*4+3]=255;on[i]=1;} else d[i*4+3]=0; }
+  if(!ghost) for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x; if(on[i])continue;
+    if((x>0&&on[i-1])||(x<w-1&&on[i+1])||(y>0&&on[i-w])||(y<h-1&&on[i+w])){d[i*4]=11;d[i*4+1]=16;d[i*4+2]=32;d[i*4+3]=255;}}
+  c.putImageData(img,0,0);
+  spriteCache.set(key,cv); return cv;
+}
+function fishCard(cv,sp,ghost){
+  const W=72,Hh=34; cv.width=W; cv.height=Hh;
+  const c=cv.getContext("2d"); c.imageSmoothingEnabled=false; c.clearRect(0,0,W,Hh);
+  let L=sp.id==="oarfish"?60:sp.bill?38:46;
+  let s=sprite(sp,L,ghost);
+  while((s.width>W||s.height>Hh)&&L>12){ L-=4; s=sprite(sp,L,ghost); }
+  c.drawImage(s,Math.round((W-s.width)/2),Math.round((Hh-s.height)/2));
+}
+
+// ---------- log book storage ----------
+const LOGKEY="longcast-log"; let LOG={};
+try{ LOG=JSON.parse(localStorage.getItem(LOGKEY)||"{}")||{}; }catch(e){ LOG={}; }
+function logCatch(f,cm){
+  const e=LOG[f.id]||{n:0,best:0}, isNew=!e.n; e.n++; e.best=Math.max(e.best,cm); LOG[f.id]=e;
+  try{ localStorage.setItem(LOGKEY,JSON.stringify(LOG)); }catch(err){}
+  if(!LOG[f.id].first) LOG[f.id].first=DAY.id;
+  syncLog();
+  return isNew;
+}
+// ---------- online: anonymous player id, puzzle, log book sync, daily comparison ----------
+const API="api";
+let PLAYER=null;
+try{ PLAYER=localStorage.getItem("longcast-player"); if(!PLAYER){PLAYER=crypto.randomUUID();localStorage.setItem("longcast-player",PLAYER);} }catch(e){ PLAYER=null; }
+async function api(path,opts){
+  const r=await fetch(`${API}/${path}`,Object.assign({headers:{"content-type":"application/json"}},opts||{}));
+  if(!r.ok||!(r.headers.get("content-type")||"").includes("json")) throw new Error("offline");
+  return r.json();
+}
+let online=false;
+async function syncLog(){
+  if(!PLAYER) return;
+  try{
+    const res=await api("log",{method:"POST",body:JSON.stringify({player:PLAYER,log:LOG})});
+    for(const [id,e] of Object.entries(res.log||{})){const m=LOG[id]||{n:0,best:0};LOG[id]={n:Math.max(m.n,e.n),best:Math.max(m.best,e.best),first:m.first&&m.first<e.first?m.first:e.first};}
+    try{ localStorage.setItem(LOGKEY,JSON.stringify(LOG)); }catch(err){}
+    online=true;
+  }catch(e){}
+}
+const localDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;};
+async function loadPuzzle(){
+  for(const u of [`api/puzzle?day=${localDate()}`,`puzzles/${localDate()}.json`,"puzzles/latest.json"]){
+    try{ const r=await fetch(u); if(r.ok&&(r.headers.get("content-type")||"").includes("json")){ DAY=await r.json(); break; } }catch(e){}
+  }
+  const d=new Date(DAY.id+"T12:00:00");
+  $("dateLabel").textContent=d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}).replace(",","");
+  DAY.label=d.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+}
+
+// ---------- matching ----------
+const norm=s=>s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/&/g,"and").replace(/\+/g,"plus").replace(/#/g,"sharp").replace(/[^a-z0-9]/g,"");
+function buildIndex(cast){
+  const entries=[],map=new Map();
+  [["c",1],["u",2],["r",3]].forEach(([k,tier])=>cast[k].forEach(s=>{const parts=s.split("|"),e={name:parts[0],tier,keys:parts.map(norm)};entries.push(e);e.keys.forEach(key=>map.set(key,e));}));
+  return {entries,map};
+}
+function lev(a,b){const m=a.length,n=b.length;let prev=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const cur=[i];for(let j=1;j<=n;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=cur;}return prev[n];}
+function match(idx,raw){
+  const n=norm(raw); if(!n) return null;
+  for(const k of [n,n.replace(/s$/,""),n.replace(/es$/,""),n.replace(/ies$/,"y")]) if(idx.map.has(k)) return idx.map.get(k);
+  let best=null,bd=9;
+  for(const [k,e] of idx.map){const t=k.length>=9?2:k.length>=5?1:0;if(!t||Math.abs(k.length-n.length)>t)continue;const d=lev(n,k);if(d<=t&&d<bd){bd=d;best=e;}}
+  return best;
+}
+
+// ---------- game state ----------
+const $=id=>document.getElementById(id);
+let castIdx=0,idx,dist=0,found,endAt=0,phase="idle",recent=[],gustUntil=0,results=[],prevPanel=null;
+const appEl=$("app");
+function setPlaying(on){appEl.classList.toggle("playing",on);if(on)window.scrollTo(0,0);}
+let typed="";
+function setTyped(v){typed=v.slice(0,32);$("typedText").textContent=typed;tensionTarget=Math.min(1,typed.length/9);
+  $("typed").classList.toggle("taut",typed.length>0);$("typed").classList.toggle("empty",!typed);}
+function press(k){
+  if(phase!=="play"&&phase!=="casting") return;
+  if(k==="enter") return submit();
+  if(k==="back") return setTyped(typed.slice(0,-1));
+  setTyped(typed+k);
+  if(phase==="play"){ripples.push({x:lureX,t:performance.now(),s:.35});twitch=performance.now();}
+}
+(function buildKb(){
+  const rows=[["q","w","e","r","t","y","u","i","o","p"],["a","s","d","f","g","h","j","k","l"],["z","x","c","v","b","n","m","back"],["space","enter"]];
+  const label={back:"⌫",enter:"Blow",space:"space"};
+  rows.forEach(r=>{const row=document.createElement("div");row.className="r";
+    r.forEach(k=>{const b=document.createElement("button");b.type="button";b.tabIndex=-1;b.dataset.k=k;b.textContent=label[k]||k;
+      if(k==="back"||k==="enter")b.className="wide"+(k==="enter"?" blow":"");if(k==="space")b.className="space";
+      b.setAttribute("aria-label",k);row.appendChild(b);});
+    $("kb").appendChild(row);});
+  $("kb").addEventListener("pointerdown",e=>{const b=e.target.closest("button");if(!b)return;e.preventDefault();
+    b.classList.add("down");setTimeout(()=>b.classList.remove("down"),90);
+    const k=b.dataset.k;press(k==="space"?" ":k);});
+})();
+document.addEventListener("keydown",e=>{
+  if(!appEl.classList.contains("playing")||e.metaKey||e.ctrlKey||e.altKey) return;
+  if(e.key==="Enter"){e.preventDefault();press("enter");}
+  else if(e.key==="Backspace"){e.preventDefault();press("back");}
+  else if(e.key.length===1&&/[a-z0-9 '\-.&+#]/i.test(e.key)){e.preventDefault();press(e.key.toLowerCase());}
+});
+function showPanel(id){["help","play","between","final","log","archive"].forEach(p=>$(p).hidden=p!==id);
+  document.querySelector(".scene").hidden=(id==="help"||id==="log"||id==="archive"); $("overlay").hidden=phase!=="idle"||id==="help";}
+
+function startCast(){
+  const c=DAY.casts[castIdx]; idx=buildIndex(c);
+  dist=0; found=new Map(); recent=[]; gustUntil=0; hanging=null; wind=null; lure.d=0; view=150; resetScene();
+  $("castNo").textContent=`Cast ${castIdx+1} of 3`;
+  $("catName").textContent=c.cat; $("catHint").textContent=c.hint;
+  $("tagName").textContent=c.cat; $("tagHint").textContent=c.hint;
+  $("chips").innerHTML=""; setMsg("Winding up…");
+  $("castLabel").textContent=`Cast ${castIdx+1} of 3`;
+  $("bar").style.transform="scaleX(1)"; $("secs").textContent=CAST_SECS;
+  $("kb").classList.remove("off"); $("logBtn").hidden=true;
+  phase="casting";
+  showPanel("play"); setPlaying(true); castAnim={t0:performance.now(),landed:false};
+  setTyped("");
+}
+function setMsg(html,bad){const m=$("msg");m.innerHTML=html;m.classList.toggle("bad",!!bad);}
+function flash(cls){const g=$("typed");g.classList.remove("shake","good");void g.offsetWidth;g.classList.add(cls);}
+function tangle(text,secs,word){
+  endAt-=secs*1000; flash("shake"); tangleUntil=performance.now()+600;
+  setMsg(`${text} <span>(−${secs}s)</span>`,true);
+  if(word){
+    const b=document.createElement("button"); b.type="button"; b.className="appeal"; b.textContent="That should count";
+    b.onclick=()=>{try{const k="longcast-appeals",a=JSON.parse(localStorage.getItem(k)||"[]");a.push({cat:DAY.casts[castIdx].cat,word,at:Date.now()});localStorage.setItem(k,JSON.stringify(a));}catch(e){}
+      b.replaceWith(Object.assign(document.createElement("span"),{textContent:"Logged for review"}));};
+    $("msg").appendChild(b);
+  }
+}
+function submit(){
+  if(phase!=="play") return;
+  const raw=typed.trim(); if(!raw) return; setTyped("");
+  const hit=match(idx,raw);
+  if(!hit) return tangle(`“${raw}” isn't on the list.`,2,raw);
+  if(found.has(hit.name)) return tangle(`${hit.name} is already out there.`,1);
+  const now=performance.now(), gC=[...found.values()].filter(v=>v.g).length, gust=now<gustUntil&&gC<found.size-gC, m=Math.round(PTS[hit.tier]*(gust?1.5:1));
+  found.set(hit.name,{tier:hit.tier,m,g:gust?1:0});
+  const from=lure.d; dist+=m;
+  recent=recent.filter(t=>now-t<6000); recent.push(now);
+  if(!gust&&recent.length>=3){gustUntil=now+5000;recent=[];}
+  flash("good");
+  setMsg(`${hit.name}: ${["","common","uncommon","rare"][hit.tier]}, a ${WIND[hit.tier]}${gust?" with tailwind":""}`);
+  const chip=document.createElement("span"); chip.className=`chip t${hit.tier}`;
+  chip.innerHTML=`<span class="c${hit.tier}"></span><b class="c${hit.tier}">+${m}</b>`; chip.firstChild.textContent=hit.name;
+  $("chips").prepend(chip);
+  blow(from,dist,hit.tier,`+${m} m ${WIND[hit.tier]}`);
+}
+
+function endCast(){
+  phase="reel"; $("kb").classList.add("off"); setTyped("");
+  $("gust").hidden=true; $("timerrow").classList.remove("low");
+  const res=pickFish(dist);
+  setMsg(res?"The line drops… something's biting!":"The line drops…");
+  wind=null; lure.d=dist; dropT0=performance.now();
+  const fi=res?TIERS.indexOf(res.f.tier):0;
+  reel={t0:dropT0+(sceneMode==="air"?1250:0),dur:res?clamp(2300+dist*5+fi*700,2600,9500):clamp(1200+dist*2.5,1200,4000),from:dist,fish:res&&res.f,
+    fight:res?[1,2,4,6,9][fi]:0,leapAt:res&&fi>=2?.5:null,tier:res?res.f.tier:null,lucky:res&&res.lucky,view:Math.max(150,dist*1.25+20),done:()=>afterReel(res)};
+}
+function afterReel(res){
+  const c=DAY.casts[castIdx], list=[...found.entries()];
+  let isNew=false; if(res){isNew=logCatch(res.f,res.cm);hanging=res.f;}
+  results.push({cat:c.cat,dist,n:list.length,fish:res,answers:list.map(([name,v])=>({name,g:v.g}))});
+  phase="between"; setPlaying(false);
+  $("bEyebrow").textContent=`Cast ${castIdx+1} reeled in`;
+  const box=$("bCatch"); box.innerHTML="";
+  if(res){
+    box.innerHTML=`<div class="catch r-${res.f.tier}"><canvas></canvas><div class="meta"><span class="eyebrow">You hooked</span><span class="name"></span><span class="stats"></span></div></div>`;
+    box.querySelector(".name").textContent=res.f.name; box.querySelector(".stats").textContent=`${res.cm} cm`;
+    const tags=document.createElement("span"); tags.className="tags";
+    const add=(cls,txt)=>{const b=document.createElement("span");b.className="badge "+cls;b.textContent=txt;tags.appendChild(b);};
+    add("r-"+res.f.tier,TIERNAME[res.f.tier]); if(res.lucky) add("lucky","Lucky bite"); if(isNew) add("new","New to log");
+    box.querySelector(".meta").appendChild(tags);
+    fishCard(box.querySelector("canvas"),res.f);
+  }
+  $("bTitle").textContent=`${dist} m on ${c.cat.toLowerCase()}`;
+  const rares=list.filter(([,v])=>v.tier===3).length;
+  $("bStats").textContent=res?`${list.length} answer${list.length===1?"":"s"}, ${rares} rare.`:"No answers, so nothing bit this time.";
+  $("bChips").innerHTML="";
+  list.forEach(([name,v])=>{const s=document.createElement("span");s.className=`chip t${v.tier}`;s.innerHTML=`<span class="c${v.tier}"></span><b class="c${v.tier}">+${v.m}</b>`;s.firstChild.textContent=name;$("bChips").appendChild(s);});
+  const missed=idx.entries.filter(e=>e.tier===3&&!found.has(e.name)).sort(()=>Math.random()-.5).slice(0,4).map(e=>e.name);
+  $("bRare").textContent=missed.length?`Rare ones still in the water: ${missed.join(", ")}.`:"You found every rare answer.";
+  $("next").textContent=castIdx<2?"Next cast":"See today's haul";
+  $("logBtn").hidden=false;
+  showPanel("between"); $("next").focus();
+}
+$("next").onclick=()=>{castIdx++; if(castIdx<3) startCast(); else finish();};
+function finish(review){
+  phase="final";
+  if(!review) saveResult();
+  $("fEyebrow").textContent=MODE==="today"?"Today's haul":`Haul · ${DAY.label}`;
+  $("todayBtn").hidden=MODE==="today"; $("logBtn").hidden=false;
+  $("nextIn").hidden=MODE!=="today"; updateNextIn();
+  const total=results.reduce((a,r)=>a+r.dist,0);
+  let bi=-1,bc=-1; results.forEach((r,i)=>{if(r.fish){const s=TIERS.indexOf(r.fish.f.tier)*10000+r.fish.cm;if(s>bc){bc=s;bi=i;}}});
+  $("fTotal").textContent=`${total} m`;
+  const haul=$("fHaul"); haul.innerHTML="";
+  results.forEach((r,i)=>{
+    const d=document.createElement("div"); if(r.fish) d.className="r-"+r.fish.f.tier;
+    d.innerHTML=`<canvas></canvas><span class="n"></span><span class="d"></span>`;
+    d.querySelector(".n").textContent=r.fish?r.fish.f.name:"Nothing";
+    d.querySelector(".d").textContent=`${r.dist} m`;
+    if(r.fish){const t=document.createElement("span");t.className="tier r-"+r.fish.f.tier;t.textContent=TIERNAME[r.fish.f.tier];d.insertBefore(t,d.querySelector(".d"));}
+    if(i===bi&&results.filter(x=>x.fish).length>1){const b=document.createElement("span");b.className="bestTag";b.textContent="Best catch";d.appendChild(b);}
+    if(r.fish) fishCard(d.querySelector("canvas"),r.fish.f); else d.querySelector("canvas").remove();
+    haul.appendChild(d);
+  });
+  $("castLabel").textContent=MODE==="today"?"Done for today":`Archive · ${DAY.label}`;
+  showPanel("final");
+  const bar=d=>"🌊".repeat(Math.max(1,Math.min(6,Math.round(d/120))));
+  submitAndCompare(total,MODE==="today"&&!review);
+  $("share").textContent=`Long Cast · ${DAY.label}${MODE==="archive"?" (archive)":""}\n`+results.map((r,i)=>`🎣${i+1} ${bar(r.dist)} ${r.dist}m ${r.fish?r.fish.f.name+({c:"",u:" ✦",r:" ✦✦",l:" ★",m:" 🌈"}[r.fish.f.tier]):"-"}`).join("\n")+`\n${total}m total`;
+}
+async function submitAndCompare(total,submit){
+  const box=$("compare"); box.innerHTML=`<p class="hint">Comparing with other anglers…</p>`;
+  let stats=null, mine={total,d1:results[0].dist,d2:results[1].dist,d3:results[2].dist}, sample=false;
+  try{
+    if(!PLAYER) throw new Error("no id");
+    if(submit){
+      const best=results.reduce((b,r)=>r.fish&&TIERS.indexOf(r.fish.f.tier)>TIERS.indexOf(b||"")?r.fish.f.tier:b,null);
+      const sub=await api("score",{method:"POST",body:JSON.stringify({player:PLAYER,day:DAY.id,bestTier:best,casts:results.map(r=>({answers:r.answers}))})});
+      mine=sub.official;
+    }
+    stats=await api(`stats?day=${encodeURIComponent(DAY.id)}&player=${encodeURIComponent(PLAYER)}`);
+    if(stats.players&&stats.percentile==null){ // archive round: place it within that day's spread
+      const b=Math.floor(mine.total/stats.hist.size), below=stats.hist.counts.slice(0,b).reduce((a,v)=>a+v,0)+(stats.hist.counts[b]||0)/2;
+      stats.percentile=Math.round(below/stats.players*100);
+    }
+  }catch(e){ stats=sampleStats(results); sample=true; }
+  renderCompare(stats,mine,sample);
+}
+function sampleStats(res){
+  // offline preview only: a made-up crowd so the comparison can be seen before the game is hosted
+  let seed=7; const rnd=()=>((seed=(seed*16807)%2147483647)/2147483647);
+  const players=[]; for(let i=0;i<240;i++){const k=.45+rnd()*1.1; players.push([0,1,2].map(()=>Math.round((60+rnd()*260)*k/5)*5));}
+  players.push(res.map(r=>r.dist));
+  return statsFrom(players.map(c=>({d1:c[0],d2:c[1],d3:c[2],total:c[0]+c[1]+c[2]})),res.reduce((a,r)=>a+r.dist,0));
+}
+function statsFrom(rows,myTotal){
+  const N=rows.length, pick=k=>{const v=rows.map(r=>r[k]).sort((a,b)=>a-b);return {avg:Math.round(v.reduce((a,b)=>a+b,0)/N),p90:v[Math.floor(.9*(N-1))]};};
+  const max=Math.max(...rows.map(r=>r.total)), size=Math.max(50,Math.ceil(max/12/50)*50), counts=new Array(Math.floor(max/size)+1).fill(0);
+  rows.forEach(r=>counts[Math.floor(r.total/size)]++);
+  return {players:N,percentile:N>1?Math.round(rows.filter(r=>r.total<myTotal).length/(N-1)*100):100,casts:["d1","d2","d3"].map(pick),total:pick("total"),hist:{size,counts}};
+}
+function renderCompare(st,mine,sample){
+  const box=$("compare"); box.innerHTML="";
+  const when=MODE==="today"?"today":"that day";
+  if(!st.players||!st.hist){box.innerHTML=`<p class="hint">Nobody else's results are in for ${when} yet.</p>`;return;}
+  const h=document.createElement("p"); h.className="pct";
+  h.innerHTML=st.players>1?`Further than <b></b> of ${st.players.toLocaleString()} anglers ${when}`:`You're the first angler out ${when}`;
+  if(st.players>1) h.querySelector("b").textContent=st.percentile+"%";
+  box.appendChild(h);
+  // pixel histogram of everyone's totals, your bar lit
+  const cv=document.createElement("canvas"); cv.className="hist"; const W=120,H=34; cv.width=W; cv.height=H; box.appendChild(cv);
+  const c=cv.getContext("2d"), n=st.hist.counts.length, bw=Math.floor(W/n), top=Math.max(...st.hist.counts), mineB=Math.floor(mine.total/st.hist.size);
+  st.hist.counts.forEach((v,i)=>{const bh=v?Math.max(1,Math.round(v/top*(H-6))):0;c.fillStyle=i===mineB?"#ff8f4a":"#2b5c63";c.fillRect(i*bw+1,H-4-bh,bw-1,bh);});
+  c.fillStyle="#a9bcbc"; c.fillRect(0,H-3,W,1);
+  if(mineB<n){c.fillStyle="#ff8f4a";c.fillRect(mineB*bw+Math.floor(bw/2)-1,H-2,2,2);}
+  const axis=document.createElement("div"); axis.className="axis"; axis.innerHTML=`<span>0 m</span><span>${(n*st.hist.size).toLocaleString()} m</span>`; box.appendChild(axis);
+  // per-cast table
+  const t=document.createElement("table"); t.className="cmp";
+  t.innerHTML=`<thead><tr><th>Cast</th><th>You</th><th>Avg</th><th>Top 10%</th></tr></thead><tbody></tbody>`;
+  const tb=t.querySelector("tbody");
+  const row=(label,you,s,strong)=>{const tr=document.createElement("tr"); if(strong) tr.className="tot";
+    [label,you+" m",s.avg+" m",s.p90+" m"].forEach((v,i)=>{const td=document.createElement("td");td.textContent=v;if(i===1)td.className=you>=s.p90?"top":you>=s.avg?"up":"down";tr.appendChild(td);});tb.appendChild(tr);};
+  results.forEach((r,i)=>row(r.cat,[mine.d1,mine.d2,mine.d3][i],st.casts[i]));
+  row("Total",mine.total,st.total,true);
+  box.appendChild(t);
+  const note=document.createElement("p"); note.className="note";
+  note.textContent=sample?"Sample crowd for this preview. Real comparisons appear once the game is hosted.":MODE==="archive"?"Archive round: compared with that day's anglers, not added to their results.":"One round a day. Come back tomorrow for a new puzzle.";
+  box.appendChild(note);
+  const pctLine=st.players>1?` · further than ${st.percentile}%`:"";
+  if(!sample) $("share").textContent=$("share").textContent.replace(/total$/,"total"+pctLine);
+}
+$("copy").onclick=async()=>{
+  const t=$("share").textContent;
+  try{await navigator.clipboard.writeText(t);$("copy").textContent="Copied";}
+  catch(e){const r=document.createRange();r.selectNodeContents($("share"));const s=getSelection();s.removeAllRanges();s.addRange(r);$("copy").textContent="Selected, copy it";}
+  setTimeout(()=>$("copy").textContent="Copy result",1800);
+};
+$("start").onclick=startCast;
+
+// ---------- one round a day, plus past puzzles ----------
+let MODE="today", TODAY=null;
+const resKey=id=>"longcast-result-"+id;
+function saveResult(){
+  try{localStorage.setItem(resKey(DAY.id),JSON.stringify({casts:results.map(r=>({cat:r.cat,dist:r.dist,n:r.n,fish:r.fish?{id:r.fish.f.id,cm:r.fish.cm,lucky:r.fish.lucky}:null}))}));}catch(e){}
+}
+function savedResult(id){
+  try{const j=JSON.parse(localStorage.getItem(resKey(id))||"null"); if(!j) return null;
+    return j.casts.map(c=>{const f=c.fish&&FISH.find(x=>x.id===c.fish.id); return {cat:c.cat,dist:c.dist,n:c.n,answers:[],fish:f?{f,cm:c.fish.cm,lucky:c.fish.lucky}:null};});
+  }catch(e){return null;}
+}
+function updateNextIn(){
+  const now=new Date(), mid=new Date(now); mid.setHours(24,0,0,0);
+  const m=Math.max(0,Math.round((mid-now)/60000)); $("nextIn").textContent=`Next puzzle in ${Math.floor(m/60)}h ${m%60}m`;
+}
+setInterval(()=>{if(!$("nextIn").hidden) updateNextIn();},30000);
+function setDayLabel(){const d=new Date(DAY.id+"T12:00:00"); DAY.label=d.toLocaleDateString("en-GB",{day:"numeric",month:"short"}); return d;}
+function openDay(day,mode){
+  DAY=day; MODE=mode; setDayLabel(); castIdx=0; hanging=null; resetScene(); lure.d=0;
+  const prev=savedResult(DAY.id);
+  if(prev){results=prev; finish(true);} else {results=[]; startCast();}
+}
+function goToday(){
+  DAY=TODAY; MODE="today"; hanging=null; resetScene(); lure.d=0;
+  const prev=savedResult(DAY.id);
+  if(prev){results=prev; finish(true); return;}
+  phase="idle"; results=[]; $("castLabel").textContent="3 casts today"; $("logBtn").hidden=false; showPanel(null);
+}
+async function openArchive(){
+  prevPanel=["final"].find(p=>!$(p).hidden)||null;
+  const box=$("days"); box.innerHTML=`<p class="hint">Loading past puzzles…</p>`; showPanel("archive");
+  let days;
+  try{ days=(await api(`days?before=${encodeURIComponent(TODAY.id)}`)).days; }
+  catch(e){ // no API: use the static puzzle index shipped with the page
+    try{ const r=await fetch("puzzles/index.json"); if(!r.ok) throw 0; days=(await r.json()).days.filter(d=>d.day<TODAY.id); }
+    catch(e2){ box.innerHTML=`<p class="hint">Past puzzles appear here once the game is hosted.</p>`; return; }
+  }
+  if(!days.length){ box.innerHTML=`<p class="hint">No past puzzles yet. Today's is the first one.</p>`; return; }
+  box.innerHTML="";
+  days.forEach(d=>{
+    const prev=savedResult(d.day), b=document.createElement("button"); b.type="button"; b.className="day"+(prev?" done":"");
+    b.innerHTML=`<span class="when"></span><span class="cats"></span><span class="st"></span>`;
+    b.querySelector(".when").textContent=new Date(d.day+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}).replace(",","");
+    b.querySelector(".cats").textContent=d.cats.join(" · ");
+    const st=b.querySelector(".st"); if(prev){st.textContent=prev.reduce((a,r)=>a+r.dist,0)+" m ✓";} else {st.textContent="Play";st.classList.add("play");}
+    b.onclick=async()=>{
+      let pz=null;
+      try{ pz=await api(`puzzle?day=${d.day}`); }
+      catch(e){ try{ const r=await fetch(`puzzles/${d.day}.json`); if(r.ok) pz=await r.json(); }catch(e2){} }
+      if(pz) openDay(pz,"archive"); else st.textContent="Try again";
+    };
+    box.appendChild(b);
+  });
+}
+$("pastBtn").onclick=openArchive; $("pastBtn2").onclick=openArchive;
+$("closeArchive").onclick=()=>showPanel(prevPanel);
+$("todayBtn").onclick=goToday;
+(async()=>{ await loadPuzzle(); TODAY=DAY; setDayLabel(); const prev=savedResult(DAY.id); if(prev){results=prev; finish(true);} })();
+syncLog();
+$("helpBtn").onclick=()=>showPanel("help");
+$("closeHelp").onclick=()=>showPanel(null);
+
+function openLog(){
+  prevPanel=["between","final","archive"].find(p=>!$(p).hidden)||null;
+  const caught=FISH.filter(f=>LOG[f.id]).length;
+  $("logCount").textContent=`${caught} of ${FISH.length} caught`;
+  $("logBar").style.width=`${caught/FISH.length*100}%`;
+  const book=$("book"); book.innerHTML="";
+  TIERS.forEach((t,ti)=>{
+    const pool=FISH.filter(f=>f.tier===t), got=pool.filter(f=>LOG[f.id]).length;
+    const h=document.createElement("div"); h.className="tierhead r-"+t;
+    h.innerHTML=`<b></b><span></span>`; h.firstChild.textContent=TIERNAME[t]; h.lastChild.textContent=`${got}/${pool.length} · ${t==="m"?"":"usually "}${["near the boat","from "+TIER_PEAK[1]/2+" m","from "+Math.round((TIER_PEAK[1]+TIER_PEAK[2])/2)+" m","from "+Math.round((TIER_PEAK[2]+TIER_PEAK[3])/2)+" m","the rarest catch in the game"][ti]}`;
+    book.appendChild(h);
+    pool.forEach(f=>{
+      const e=LOG[f.id], p=document.createElement("div");
+      p.className="page r-"+t+(e?"":" locked");
+      p.innerHTML=`<canvas></canvas><span class="n"></span><span class="d"></span>`;
+      p.querySelector(".n").textContent=e?f.name:"???";
+      p.querySelector(".d").textContent=e?`Caught ×${e.n} · best ${e.best} cm`:"Not caught yet";
+      fishCard(p.querySelector("canvas"),f,!e);
+      book.appendChild(p);
+    });
+  });
+  showPanel("log");
+}
+$("logBtn").onclick=openLog; $("openLog").onclick=openLog;
+$("closeLog").onclick=()=>showPanel(prevPanel);
+
+// ---------- pixel scene ----------
+const LW=200, X0=56, XMAX=192; let LH=160, WY=64;
+// Scene is drawn at 1x into a pixel buffer, then blown up with nearest-neighbour onto a large canvas,
+// so camera zoom never smears the pixel art.
+const K=4, TOP=80;
+const cv=$("sea"), mctx=cv.getContext("2d");
+const buf=document.createElement("canvas"); let ctx=buf.getContext("2d");
+function sizeBufs(){cv.width=LW*K;cv.height=LH*K;buf.width=LW;buf.height=LH+TOP;mctx.imageSmoothingEnabled=false;ctx.imageSmoothingEnabled=false;}
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const C={ink:css("--ink"),ember:css("--ember"),bad:css("--bad"),t:[0,css("--t1"),css("--t2"),css("--t3")],muted:css("--muted")};
+const SKY=["#151a35","#1e1d44","#2c2350","#3f2a58","#5e325e","#8a3f60","#b8525c","#e2694f","#ff8f4a"];
+const WATER=["#2a6f78","#1d5c66","#164f58","#12474f","#0f3d45","#0c333b","#0b2a31"];
+let lureX=X0, view=150, flowT=0, flowBoost=0, last=performance.now();
+const lure={d:0};
+let wind=null, reel=null, castAnim=null, hanging=null, tension=0, tensionTarget=0, twitch=0, tangleUntil=0, shakeUntil=0, shakeAmp=1;
+let sceneMode="wide", airIntro=null, dropT0=0, camD=0, gustAmp=0, flashUntil=0, lastSy=0;
+const cam={cx:LW/2,cy:80,z:1};
+const ripples=[], parts=[], streaks=[], airParts=[], airStreaks=[];
+const clouds=[{x:20,y:12,s:1},{x:95,y:20,s:.7},{x:160,y:8,s:1.2}];
+const shadows=[0,1,2,3].map(i=>({x:60+i*40,f:.12+i*.25,v:(i%2?1:-1)*(.08+i*.03),s:4+i}));
+function sizeScene(){const r=cv.getBoundingClientRect(); if(!r.width) return;
+  LH=Math.max(70,Math.min(460,Math.round(LW*r.height/r.width))); WY=64; // fixed horizon so a canvas resize never shifts the scene
+  if(cv.height!==LH*K) sizeBufs();}
+sizeBufs(); new ResizeObserver(sizeScene).observe(cv);
+let hangFish=null, hangT=0; const fishLen=f=>f.id==="oarfish"?22:14;
+function resetScene(){sceneMode="wide";airIntro=null;camD=0;gustAmp=0;cam.z=1;airStreaks.length=0;airParts.length=0;}
+
+const P=(x,y,w=1,h=1)=>ctx.fillRect(Math.round(x),Math.round(y),w,h);
+function plotQuad(x0,y0,cx,cy,x1,y1,col,alpha=1){
+  ctx.fillStyle=col; ctx.globalAlpha=alpha;
+  const n=Math.max(8,Math.ceil(Math.hypot(x1-x0,y1-y0)*1.4));
+  for(let i=0;i<=n;i++){const t=i/n,a=(1-t)*(1-t),b=2*(1-t)*t,c=t*t;P(a*x0+b*cx+c*x1,a*y0+b*cy+c*y1);}
+  ctx.globalAlpha=1;
+}
+const ease=p=>1-Math.pow(1-p,3), easeIO=p=>p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2, easeIn=p=>p*p*p, lerp=(a,b,t)=>a+(b-a)*t, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function popText(text,cls,left,top,ms=1200){
+  const p=document.createElement("div"); p.className="pop "+cls; p.textContent=text;
+  p.style.left=clamp(left,16,84)+"%"; p.style.top=clamp(top,8,80)+"%";
+  $("pops").appendChild(p); setTimeout(()=>p.remove(),ms);
+}
+
+// air view constants (logical px, drawn at 2x)
+const AW=100, LX=40, PXM=1.7;
+function blow(from,to,tier,label){
+  wind={from,to,t0:performance.now(),dur:750+tier*350,tier};
+  gustAmp=Math.max(gustAmp,tier*1.3);
+  const AH=LH/2, n=[0,7,14,26][tier];
+  for(let i=0;i<n;i++) airStreaks.push({x:-Math.random()*70-4,y:4+Math.random()*(AH*.75),v:1+tier*.9+Math.random()*.6,len:3+tier*3+Math.random()*3,col:C.ink,a:.45+tier*.15});
+  if(tier>=2) for(let i=0;i<(tier===3?12:4);i++) airStreaks.push({x:-Math.random()*60,y:6+Math.random()*AH*.7,v:1.6+Math.random()*1.4,len:1,col:i%2?C.t[3]:C.ember,a:1,leaf:Math.random()*6});
+  if(tier===3){shakeUntil=performance.now()+380;shakeAmp=2;}
+  flowBoost=Math.max(flowBoost,tier*.9);
+  popText(label,`c${tier} r${tier}`,((LX+14)*2)/LW*100,lastSy*2/LH*100+6);
+  const dl=$("distLabel"); dl.classList.remove("bump"); void dl.offsetWidth; dl.classList.add("bump");
+  milestones(from,to);
+}
+const ZONES=[[100,"Uncommon waters"],[300,"Rare waters"],[500,"Legendary waters"]];
+function banner(big,small,cls){
+  const b=document.createElement("div"); b.className="banner "+(cls||"");
+  b.innerHTML="<b></b>"+(small?"<span></span>":""); b.firstChild.textContent=big; if(small) b.lastChild.textContent=small;
+  $("pops").appendChild(b); setTimeout(()=>b.remove(),1800);
+}
+function milestones(from,to){
+  const z=ZONES.filter(z=>from<z[0]&&to>=z[0]).pop();
+  if(z){ banner(`${z[0]} m!`,`Entering ${z[1]}`,"zone"); flashUntil=performance.now()+120; shakeUntil=performance.now()+300; shakeAmp=2;
+    for(let i=0;i<16;i++) airStreaks.push({x:-Math.random()*40,y:Math.random()*LH*.4,v:2.5+Math.random()*1.5,len:1,col:i%2?C.t[2]:C.t[3],a:1,leaf:Math.random()*6}); return; }
+  const m=Math.floor(to/100)*100; if(m>=100&&from<m) banner(`${m} m!`,"","");
+}
+function splash(x,big){
+  ripples.push({x,t:performance.now(),s:big?1.2:1});
+  for(let i=0;i<(big?14:8);i++) parts.push({x,y:WY-1,vx:(Math.random()-.5)*1.6,vy:-1-Math.random()*1.6,life:1,col:i%3?C.ink:"#9fd6dc"});
+}
+
+// ruler / buoy labels in DOM so the numbers stay crisp
+const rulerEl=$("ruler"), rulerSpans=[];
+function setRuler(list){
+  let i=0;
+  for(;i<list.length;i++){let s=rulerSpans[i]; if(!s){s=document.createElement("span");rulerEl.appendChild(s);rulerSpans.push(s);}
+    s.hidden=false; s.textContent=list[i].label; s.style.left=(list[i].x/LW*100)+"%";}
+  for(;i<rulerSpans.length;i++) rulerSpans[i].hidden=true;
+}
+
+// ---------- shared bits ----------
+function drawAngler(hullTop,lean,shake,handX,handY){
+  const ox=lean+shake;
+  ctx.fillStyle="#d0573f"; P(17+ox,hullTop-7,6,7); ctx.fillStyle="#a8402f"; P(21+ox,hullTop-7,2,7);
+  ctx.fillStyle="#f2c49b"; P(17+ox,hullTop-11,5,4); ctx.fillStyle="#1b1b1b"; P(21+ox,hullTop-10);
+  ctx.fillStyle="#ffd37a"; P(15+ox,hullTop-12,9,1); P(17+ox,hullTop-14,5,2); ctx.fillStyle="#c99a3c"; P(17+ox,hullTop-12,5,1);
+  // arm from shoulder to hand
+  ctx.fillStyle="#d0573f"; const sx=21+ox, sy=hullTop-6;
+  for(let i=0;i<=4;i++) P(lerp(sx,handX,i/4),lerp(sy,handY,i/4),2,2);
+}
+function drawBobber(x,y){
+  ctx.fillStyle="#3b2418"; P(x,y-5,1,2);
+  ctx.fillStyle="#ff5a5f"; P(x-1,y-3,3,1); P(x-2,y-2,5,2);
+  ctx.fillStyle=C.ink; P(x-2,y,5,1); P(x-1,y+1,3,1);
+  ctx.fillStyle="#ffffff"; P(x-1,y-2,1,1);
+}
+
+// ---------- wide lake view (idle, cast wind-up, reel, results) ----------
+function drawWide(now,dt){
+  const bob=Math.round(Math.sin(now/650)*1.5+Math.sin(now/1700)*.6), rock=Math.sin(now/650+.8)*.04;
+  const hullTop=WY-3+bob;
+  let handX=25, handY=hullTop-6, ang=-.95-tension*.3, lean=0, shake=0, lineOut=phase!=="idle", lx=lureX, ly=WY-2, power=-1, smear=null, flying=false;
+  let tz=1, tcx=LW/2, tcy=LH/2;
+
+  if(castAnim){
+    const T=now-castAnim.t0, ax=21, ay=hullTop-8;
+    lineOut=false;
+    if(T<1500){ // wind-up with full force
+      const k=ease(Math.min(1,T/1500));
+      ang=lerp(-.95,-2.75,k); lean=-Math.round(k*1.5); shake=k>.45?Math.round((Math.random()*2-1)*k):0;
+      handX=lerp(25,22,k); handY=lerp(hullTop-6,hullTop-11,k); power=Math.min(1,T/1350);
+      tz=lerp(1,3.2,easeIO(Math.min(1,T/700))); tcx=lerp(LW/2,ax+4,easeIO(Math.min(1,T/700))); tcy=lerp(LH/2,ay-2,easeIO(Math.min(1,T/700)));
+      if(k>.5&&Math.random()<.25) parts.push({x:20,y:hullTop-13,vx:(Math.random()-.7)*.6,vy:-.4-Math.random()*.4,life:.8,col:"#9fd6dc",air:1});
+      if(T>950&&!castAnim.said){castAnim.said=1;popText("FULL FORCE!","c3 r3",50,18,900);setMsg("Full force…");}
+    } else if(T<1700){ // whip forward
+      const k=easeIn(Math.min(1,(T-1500)/200));
+      ang=lerp(-2.75,-.15,k); lean=Math.round(lerp(-1.5,1.5,k)); handX=lerp(22,28,k); handY=lerp(hullTop-11,hullTop-7,k);
+      smear={from:-2.75,to:ang}; tz=3.2; tcx=25; tcy=ay-2;
+      if(!castAnim.whipped&&T>1590){castAnim.whipped=1;flashUntil=now+120;shakeUntil=now+220;shakeAmp=2;}
+    } else { // follow the lure into the sky
+      const u=Math.min(1,(T-1700)/900);
+      ang=lerp(-.15,-.8,ease(Math.min(1,u*2))); lean=1; handX=27; handY=hullTop-7;
+      flying=true;
+      const tip0x=27+Math.cos(-.15)*24, tip0y=hullTop-7+Math.sin(-.15)*24;
+      lx=tip0x+u*150; ly=tip0y-14-Math.sin(u*Math.PI*.5)*90*u;
+      if(Math.random()<.8) parts.push({x:lx,y:ly,vx:0,vy:0,life:.5,col:C.ember,trail:1});
+      tz=lerp(3.2,1.4,easeIO(u)); tcx=lerp(25,lx,easeIO(u)*.85); tcy=lerp(hullTop-10,ly,easeIO(u)*.85);
+    }
+    if(T>=2600){castAnim=null;sceneMode="air";airIntro={t0:now};camD=0;}
+  }
+
+  let fishPos=null, tugging=false, reelPP=0;
+  if(reel&&now>=reel.t0){
+    const T=now-reel.t0, land=reel.fish?1100:0, rd=reel.dur-land, pp=Math.min(1,T/rd); reelPP=pp;
+    let d=reel.from*(1-easeIO(pp));
+    if(reel.fight&&pp<.92){const k=Math.max(0,Math.sin(pp*Math.PI*(reel.fight*2+1)));tugging=k>.35;d+=Math.pow(k,3)*reel.from*.06*(1-pp);}
+    lure.d=d;
+    ang=-1.25+Math.sin(now/(tugging?40:70))*(tugging?.16:.08)*(reel.fish?1:0);
+    if(reel.fish){
+      let leap=null;
+      if(reel.leapAt!=null&&Math.abs(pp-reel.leapAt)<.09){leap=(pp-(reel.leapAt-.09))/.18;
+        if(!reel.leapSaid){reel.leapSaid=1;splash(lureX+4,true);popText("WHAT A FISH!","c2 r3",50,26,1200);}
+        if(leap>.92&&!reel.leapDone){reel.leapDone=1;splash(lureX+4,true);}}
+      fishPos=pp<1?{under:true,leap}:{q:Math.min(1,(T-rd)/land)};
+      if(pp>=1){const lq=ease(fishPos.q); ang=lerp(-1.25,-.95,lq); reel.landQ=lq;}
+      if(pp<1&&Math.random()<(tugging?.35:.08)){ripples.push({x:lureX,t:now,s:tugging?.9:.5}); if(tugging) parts.push({x:lureX+(Math.random()-.5)*4,y:WY-1,vx:(Math.random()-.5)*1.2,vy:-.8-Math.random(),life:.8,col:"#9fd6dc"});}
+      if(tugging&&!reel.fightSaid){reel.fightSaid=1;setMsg("It's fighting! Keep reeling…");}
+    }
+    if(T>=reel.dur){const r=reel;reel=null;if(r.fish) splash(X0-6,true);r.done();}
+  }
+  const tv=reel?reel.view:Math.max(150,Math.max(lure.d,dist)*1.25+20);
+  view+=(tv-view)*.05*dt;
+  if(!flying){ lureX=X0+(lure.d/view)*(XMAX-X0); lx=lureX; ly=WY-2+Math.round(Math.sin(now/420)*.6)+(tugging?Math.round(Math.sin(now/45)):0); }
+  // stay zoomed on the float the whole way home, then settle on the fisherman
+  if(reel&&now>=reel.t0){ if(reelPP<1){tz=2.4;tcx=lureX-14;tcy=WY-8;} else {tz=1.8;tcx=32;tcy=WY-12;} }
+  else if(phase==="between"){tz=1.8;tcx=40;tcy=WY-12+LH*.2;} // boat sits above the result card
+  else if(phase==="idle"){tz=1.5;tcx=70;tcy=WY+LH*.08;}
+
+  // camera ease + clamp
+  const ce=castAnim?.35:.12;
+  cam.z+=(tz-cam.z)*ce*dt; cam.cx+=(tcx-cam.cx)*ce*dt; cam.cy+=(tcy-cam.cy)*ce*dt;
+  const hw=LW/(2*cam.z), hh=LH/(2*cam.z);
+  const ccx=clamp(cam.cx,hw,LW-hw), ccy=clamp(cam.cy,hh-40,LH-hh);
+
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle=SKY[0]; ctx.fillRect(0,0,buf.width,buf.height);
+  ctx.translate(0,TOP);
+  const shx=now<shakeUntil?(Math.random()*2-1)*shakeAmp/cam.z:0, shy=now<shakeUntil?(Math.random()*2-1)*shakeAmp/cam.z:0;
+  // sky
+  const top=-60, bh=(WY-top)/SKY.length;
+  SKY.forEach((col,i)=>{ctx.fillStyle=col;P(-4,top+i*bh,LW+8,Math.ceil(bh)+1);});
+  for(let i=1;i<SKY.length;i++){ctx.fillStyle=SKY[i];const y=Math.round(top+i*bh)-1;for(let x=(i%2);x<LW;x+=2)P(x,y);}
+  ctx.fillStyle=C.ink; for(let i=0;i<16;i++){if(Math.sin(now/600+i*1.7)>.2)P((i*53)%LW,(i*17)%(WY*.45));}
+  const sx=150; for(let y=-11;y<=0;y++){const w=Math.floor(Math.sqrt(121-y*y));ctx.fillStyle=y<-7?"#ffd37a":y<-3?"#ffb36b":"#ff8f4a";P(sx-w,WY+y,w*2,1);}
+  clouds.forEach(c=>{c.x-=.03*c.s*dt; if(c.x<-30)c.x=LW+10; ctx.fillStyle="#6b3a62"; P(c.x,c.y,16*c.s,2); P(c.x+3*c.s,c.y-2,9*c.s,2); P(c.x+6*c.s,c.y-3,4*c.s,1); ctx.fillStyle="#8d4a66"; P(c.x+3*c.s,c.y-2,5*c.s,1);});
+  // water
+  const wh=(LH-WY)/WATER.length;
+  WATER.forEach((col,i)=>{ctx.fillStyle=col;P(-4,WY+i*wh,LW+8,Math.ceil(wh)+1);});
+  for(let r=0;r<8;r++){const w=Math.max(2,(16-r*1.6)*(.6+.4*Math.sin(now/260+r*1.3)));ctx.fillStyle=r<3?"#ffb36b":"#ff8f4a";ctx.globalAlpha=.75-r*.07;P(sx-w/2,WY+2+r*3,w,1);}
+  ctx.globalAlpha=1;
+  for(let r=0;WY+3+r*6<LH;r++){const y=WY+3+r*6, sp=.25+r*.06; ctx.fillStyle=r<3?"#3d8a92":r<8?"#2a6f78":"#1d5c66"; ctx.globalAlpha=.7;
+    for(let i=0;i<7;i++){const x=(((i*47+r*29)-flowT*sp)%(LW+20)+LW+20)%(LW+20)-10; P(x,y,3+((i+r)%3)*2,1);}}
+  ctx.globalAlpha=1;
+  ctx.fillStyle="#5aa3a8"; for(let x=0;x<LW;x++){ if(Math.sin(x*.35-flowT*.08)>.75) P(x,WY); }
+  ctx.fillStyle="#061c22"; ctx.globalAlpha=.55;
+  shadows.forEach(s=>{s.x+=s.v*dt; if(s.x>LW+15)s.x=-15; if(s.x<-15)s.x=LW+15; const d=Math.sign(s.v); s.y=Math.round(WY+10+s.f*(LH-WY-24));
+    P(s.x-s.s,s.y,s.s*2,1); P(s.x-s.s+1,s.y-1,s.s*2-2,1); P(s.x-s.s+1,s.y+1,s.s*2-2,1); P(s.x-d*(s.s+1),s.y-1,1,3);});
+  ctx.globalAlpha=1;
+  const step=[25,50,100,200,250,500,1000].find(s=>view/s<=6)||2000, marks=[];
+  if(cam.z<1.15){ ctx.fillStyle=C.muted; ctx.globalAlpha=.6;
+    for(let m=step;m<view;m+=step){const x=X0+(m/view)*(XMAX-X0);P(x,LH-14,1,3);marks.push({x,label:m+"m"});}
+    ctx.fillStyle=C.ember; P(X0,LH-14,1,3); ctx.globalAlpha=1; }
+  else if(reel){ // zoomed reel-in: distance buoys on the water slide past as the camera pans home
+    for(let m=step;m<view;m+=step){const x=X0+(m/view)*(XMAX-X0), bb=Math.round(Math.sin(now/400+m)*.6);
+      ctx.fillStyle="#3b2418"; P(x,WY-3+bb,1,3); ctx.fillStyle=m%100===0?C.ember:"#ff5a5f"; P(x-1,WY-5+bb,3,2);
+      const sxp=(x-ccx)*cam.z+LW/2; if(sxp>6&&sxp<LW-6) marks.push({x:sxp,label:m+"m"});}
+  }
+  setRuler(marks);
+
+  // boat + angler
+  ctx.save(); // no rotation: rotating the boat anti-aliased the pixel art
+  const hull=[["#c98a52",4,40],["#8a5232",5,39],["#8a5232",6,37],["#76452a",7,35],["#5a3320",9,32],["#3b2418",11,28]];
+  hull.forEach(([col,a,b],i)=>{ctx.fillStyle=col;P(a,hullTop+i,b-a,1);});
+  ctx.fillStyle="#3b2418"; P(3,hullTop-1,2,2); P(39,hullTop-1,2,2);
+  drawAngler(hullTop,lean,shake,handX+shake,handY);
+  ctx.restore();
+  ctx.fillStyle="#1d5c66"; ctx.globalAlpha=.85; P(2,WY+2,42,3); ctx.globalAlpha=1;
+  ctx.fillStyle="#5aa3a8"; for(let x=2;x<44;x+=5) P(x+((flowT/6|0)%5),WY+1,2,1);
+
+  // every throw is full force: strain marks flicker around the angler as he winds up
+  if(power>.35&&Math.sin(now/55)>-.3){
+    const hx0=19+lean+shake, hy0=hullTop-13, k=power;
+    ctx.fillStyle=C.ink; ctx.globalAlpha=.5+.5*k;
+    P(hx0-5,hy0-3,2,1); P(hx0-6,hy0,2,1); P(hx0-4,hy0-6,1,2);
+    P(hx0+5,hy0-5,1,2); P(hx0+7,hy0-2,2,1);
+    if(k>.8){ctx.fillStyle=C.t[2];P(hx0-7,hy0-5,1,1);P(hx0+8,hy0-6,1,1);}
+    ctx.globalAlpha=1;
+  }
+  // rod
+  const reelBend=reel&&reel.fish&&now>=reel.t0?(tugging?7:4)*(1-(reel.landQ||0)):0, rodBend=power>0?power*3:0;
+  const hx=handX+shake, hy=handY;
+  const tipX=hx+Math.cos(ang)*24, tipY=hy+Math.sin(ang)*24+reelBend;
+  if(smear){ctx.fillStyle=C.ink;for(let a=smear.from;a<smear.to;a+=.05){ctx.globalAlpha=.15+.5*((a-smear.from)/(smear.to-smear.from));for(let r=14;r<=24;r+=5)P(hx+Math.cos(a)*r,hy+Math.sin(a)*r);}ctx.globalAlpha=1;}
+  plotQuad(hx,hy,hx+Math.cos(ang+.12*rodBend)*14,hy+Math.sin(ang+.12*rodBend)*14+reelBend*.3,tipX,tipY,"#e8d5b0");
+  ctx.fillStyle="#5a3320"; P(hx,hy,2,2);
+
+  // line
+  const tangled=now<tangleUntil;
+  if(castAnim&&!flying){
+    plotQuad(tipX,tipY,tipX+1,tipY+3,tipX+1,tipY+6,C.ink,.7); drawBobber(tipX+1,tipY+9);
+  } else if(flying){
+    plotQuad(tipX,tipY,(tipX+lx)/2,(tipY+ly)/2+8,lx,ly,C.ink,.75); drawBobber(lx,ly);
+  } else if(!lineOut&&!hanging){
+    plotQuad(tipX,tipY,tipX+1,tipY+3,tipX+1,tipY+6,C.ink,.7); drawBobber(tipX+1,tipY+9);
+  } else if(lineOut&&!(hanging&&!reel)){
+    if(!(fishPos&&!fishPos.under)){
+      if(tangled){ctx.fillStyle=C.bad;for(let i=0;i<=40;i++){const t=i/40;P(lerp(tipX,lx,t)+Math.sin(now/30+i)*2,lerp(tipY,ly-3,t)+Math.cos(now/25+i*1.3)*2);}}
+      else plotQuad(tipX,tipY,(tipX+lx)/2,Math.min(tipY,ly)-14-Math.min(20,lure.d/8)+(reel?18:0),lx,ly-3,C.ink,.6);
+      drawBobber(lx,ly);
+    }
+  }
+  // ripples
+  for(let i=ripples.length-1;i>=0;i--){const s=ripples[i],a=(now-s.t)/650; if(a>1){ripples.splice(i,1);continue;}
+    ctx.fillStyle=C.ink; ctx.globalAlpha=(1-a)*.85; const rx=(3+a*10)*s.s, ry=(1+a*2)*s.s;
+    for(let k=0;k<20;k++){const t=k/20*Math.PI*2;P(s.x+Math.cos(t)*rx,WY+1+Math.sin(t)*ry);} }
+  ctx.globalAlpha=1;
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i]; p.x+=p.vx*dt; p.y+=p.vy*dt; if(!p.trail&&!p.air) p.vy+=.12*dt; p.life-=(p.trail?.06:.03)*dt;
+    if(p.life<=0||(!p.trail&&!p.air&&p.y>WY+1)){parts.splice(i,1);continue;} ctx.globalAlpha=Math.min(1,p.life*1.5); ctx.fillStyle=p.col; P(p.x,p.y);}
+  ctx.globalAlpha=1;
+  if(fishPos&&reel){
+    const s=sprite(reel.fish,fishLen(reel.fish));
+    if(fishPos.under&&fishPos.leap!=null){const lq=fishPos.leap,big=sprite(reel.fish,20);ctx.save();ctx.translate(Math.round(lureX+4+lq*10),Math.round(WY-2-Math.sin(Math.PI*lq)*18));ctx.rotate((lq-.5)*1.6);ctx.scale(-1,1);ctx.drawImage(big,-(big.width>>1),-(big.height>>1));ctx.restore();}
+    else if(fishPos.under){ctx.globalAlpha=.55;ctx.save();ctx.translate(Math.round(lureX+6),WY+7);ctx.scale(-1,1);ctx.drawImage(s,-(s.width>>1),-(s.height>>1));ctx.restore();ctx.globalAlpha=1;}
+    else{const q=fishPos.q, e=easeIO(q), fx=lerp(lureX,tipX,e), fy=lerp(WY+4,tipY+4+s.width/2,e)-Math.sin(Math.PI*q)*16;
+      plotQuad(tipX,tipY,(tipX+fx)/2,(tipY+fy)/2-4*(1-e),fx,fy-s.width/2*e,C.ink,.7);
+      ctx.save();ctx.translate(Math.round(fx),Math.round(fy));ctx.rotate(Math.PI/2*e);ctx.scale(-1,1);ctx.drawImage(s,-(s.width>>1),-(s.height>>1));ctx.restore();}
+  }
+  if(hanging&&!reel){
+    if(hangFish!==hanging){hangFish=hanging;hangT=now;}
+    const s=sprite(hanging,fishLen(hanging)), sway=Math.sin((now-hangT)/300)*.1*Math.min(1,(now-hangT)/600);
+    plotQuad(tipX,tipY,tipX,tipY+2,tipX,tipY+4,C.ink,.7);
+    ctx.save();ctx.translate(Math.round(tipX),Math.round(tipY+4+s.width/2));ctx.rotate(Math.PI/2+sway);ctx.scale(-1,1);ctx.drawImage(s,-(s.width>>1),-(s.height>>1));ctx.restore();
+  }
+  ctx.restore();
+  const sw=LW/cam.z, sh=LH/cam.z;
+  mctx.drawImage(buf,clamp(ccx-sw/2+shx,0,LW-sw),clamp(ccy-sh/2+TOP+shy,0,buf.height-sh),sw,sh,0,0,cv.width,cv.height);
+}
+
+// ---------- air view: zoomed on the line flying in the wind ----------
+const AIRCLOUDS=[
+  {f:.15,y:.12,col:"#3f2a58",hi:"#5e325e",gap:70,s:1.4},
+  {f:.4,y:.3,col:"#6b3a62",hi:"#8d4a66",gap:55,s:1},
+  {f:1,y:.55,col:"#8a3f60",hi:"#b8525c",gap:90,s:.8},
+];
+function cloudShape(x,y,s,col,hi){ctx.fillStyle=col;P(x,y,Math.round(18*s),3);P(x+3*s,y-2,Math.round(11*s),2);P(x+6*s,y-4,Math.round(6*s),2);ctx.fillStyle=hi;P(x+4*s,y-2,Math.round(5*s),1);P(x+7*s,y-4,Math.round(3*s),1);}
+function drawAir(now,dt){
+  const AH=Math.round(LH/2), wyRest=Math.round(AH*.82); let wy=AH+14; // water stays out of frame while the line is airborne
+  camD+=(lure.d-camD)*.028*dt;
+  // lure position
+  let sx=LX+(lure.d-camD)*PXM, sy;
+  const left=phase==="play"?Math.max(0,(endAt-now)/1000):CAST_SECS;
+  // still at the peak of the throw: starts high, slowly falls as time runs out
+  const alt=1-left/CAST_SECS, hoverY=lerp(AH*.32,AH*.68,alt*alt);
+  sy=hoverY+(now-twitch<110?-1:0);
+  if(wind){const p=Math.min(1,(now-wind.t0)/wind.dur); sy-=Math.sin(Math.PI*p)*(wind.tier*4.5);}
+  if(airIntro){
+    const q=Math.min(1,(now-airIntro.t0)/700), e=ease(q);
+    sx=lerp(-8,LX,e); sy=lerp(AH+6,AH*.32,e);
+    if(Math.random()<.8) airParts.push({x:sx,y:sy,vx:0,vy:0,life:.5,col:C.ember,trail:1});
+    if(q>=1){airIntro=null;if(phase==="casting"){phase="play";endAt=now+CAST_SECS*1000;setMsg("It's airborne. Name as many as you can!");}}
+  }
+  let dropped=false;
+  if(reel&&now<reel.t0){
+    // time's up: camera tilts down to reveal the water, the float falls into it
+    const q=Math.min(1,(now-dropT0)/900);
+    wy=Math.round(lerp(AH+14,wyRest,ease(Math.min(1,q/.55))));
+    sy=lerp(lastSy,wy,easeIn(clamp((q-.1)/.9,0,1)));
+    if(q>=1&&!reel.splashed){reel.splashed=1;for(let i=0;i<14;i++)airParts.push({x:sx,y:wy,vx:(Math.random()-.5)*1.4,vy:-.8-Math.random()*1.4,life:1,col:i%3?C.ink:"#9fd6dc",g:1});airParts.push({ring:1,x:sx,y:wy,t:now});}
+    dropped=q>=1;
+  } else lastSy=sy;
+  sx=Math.min(sx,AW-9);
+
+  ctx.save(); ctx.setTransform(2,0,0,2,0,0);
+  if(now<shakeUntil) ctx.translate(Math.round(Math.random()*2-1)*shakeAmp*.5,Math.round(Math.random()*2-1)*shakeAmp*.5);
+  // tall sky
+  const bh=wy/SKY.length;
+  SKY.forEach((col,i)=>{ctx.fillStyle=col;P(-2,i*bh,AW+4,Math.ceil(bh)+1);});
+  for(let i=1;i<SKY.length;i++){ctx.fillStyle=SKY[i];const y=Math.round(i*bh)-1;for(let x=(i%2);x<AW;x+=2)P(x,y);}
+  const scroll=camD*PXM;
+  ctx.fillStyle=C.ink; for(let i=0;i<14;i++){const x=(((i*37)-scroll*.05)%AW+AW)%AW; if(Math.sin(now/500+i*1.9)>.1)P(x,(i*13)%(wyRest*.4));}
+  ctx.fillStyle="#ffb36b"; for(let y=-6;y<=0;y++){const w=Math.floor(Math.sqrt(36-y*y));P(80-w,wy+y,w*2,1);}
+  AIRCLOUDS.forEach((L,li)=>{for(let i=0;i<4;i++){const span=L.gap*4, x=((i*L.gap+li*23-scroll*L.f-flowT*.02*(li+1))%span+span)%span-24; cloudShape(x,Math.round(wyRest*L.y)+((i*7)%5),L.s,L.col,L.hi);}});
+  if(wy<AH){
+  const wh=(AH-wy)/4;
+  [WATER[0],WATER[2],WATER[4],WATER[6]].forEach((col,i)=>{ctx.fillStyle=col;P(-2,wy+i*wh,AW+4,Math.ceil(wh)+1);});
+  ctx.fillStyle="#3d8a92"; ctx.globalAlpha=.8;
+  for(let r=0;wy+2+r*3<AH;r++){for(let i=0;i<5;i++){const span=AW+20,x=(((i*29+r*13)-scroll*(1+r*.2)-flowT*.3)%span+span)%span-10;P(x,wy+2+r*3,2+((i+r)%3),1);}}
+  ctx.globalAlpha=1;
+  ctx.fillStyle="#5aa3a8"; for(let x=0;x<AW;x++) if(Math.sin((x+scroll)*.5-flowT*.08)>.7) P(x,wy);
+  // distance buoys
+  const marks=[];
+  for(let m=Math.max(25,Math.ceil((camD-45)/25)*25);m<camD+60;m+=25){
+    const bx=LX+(m-camD)*PXM; if(bx<-4||bx>AW+4) continue;
+    const bb=Math.round(Math.sin(now/400+m)*.8);
+    ctx.fillStyle="#3b2418"; P(bx,wy-4+bb,1,4); ctx.fillStyle=m%100===0?C.ember:"#ff5a5f"; P(bx-1,wy-6+bb,3,2); ctx.fillStyle=C.ink; P(bx-1,wy+bb,3,1);
+    marks.push({x:bx*2,label:m+"m"});
+  }
+  setRuler(marks);
+  } else {
+    // distance track: boat on the left, float marker, fish-zone ticks, next zone named
+    const nz=ZONES.find(z=>z[0]>lure.d), maxD=Math.max(nz?nz[0]*1.12:lure.d*1.12,200);
+    const ty=AH-9, tx0=8, tx1=AW-6, X=d=>tx0+(tx1-tx0)*Math.min(1,d/maxD);
+    ctx.fillStyle="#060f12"; P(tx0-1,ty-1,tx1-tx0+2,3);
+    ctx.fillStyle="#2b5c63"; P(tx0,ty,tx1-tx0,1);
+    ctx.fillStyle=C.ember; P(tx0,ty,Math.round(X(lure.d)-tx0),1);
+    ZONES.forEach(z=>{if(z[0]<=maxD){ctx.fillStyle=lure.d>=z[0]?C.t[2]:C.muted;P(X(z[0]),ty-2,1,5);}});
+    ctx.fillStyle="#8a5232"; P(tx0-6,ty-1,5,2); ctx.fillStyle="#d0573f"; P(tx0-4,ty-3,1,2);
+    const fx=X(lure.d); ctx.fillStyle="#ff5a5f"; P(fx-1,ty-4,3,2); ctx.fillStyle=C.ink; P(fx-1,ty-2,3,1);
+    setRuler(nz?[{x:X(nz[0])*2,label:`${nz[1].split(" ")[0]} ${nz[0]}m`}]:[{x:fx*2,label:"Legendary waters"}]);
+  }
+  // line: runs back toward the boat, wiggling in the wind
+  // taut line straight back down to the rod: only a faint string vibration, a sharp twang on each gust
+  gustAmp*=Math.pow(.9,dt);
+  // line comes from the rod tip on the boat, off-screen left and above the water
+  const tangled=now<tangleUntil, x0=-6, y0=Math.min(AH+4,wy-16), ex=sx, ey=sy-4;
+  const dx=ex-x0, dy=ey-y0, len=Math.hypot(dx,dy), nx=-dy/len, ny=dx/len;
+  const sag=dropped?8:(1.2+alt*3)*(1-tension*.8);
+  const amp=(.45+gustAmp)*(1-tension*.5), freq=26+gustAmp*4;
+  ctx.fillStyle=tangled?C.bad:(tension>.08?"#ffd37a":C.ink); ctx.globalAlpha=tangled?1:.9;
+  const n=Math.ceil(len*1.3)+10;
+  for(let i=0;i<=n;i++){const t=i/n, env=Math.sin(Math.PI*t);
+    const off=Math.sin(t*freq-now/38)*amp*env;
+    let x=x0+dx*t+nx*off, y=y0+dy*t+ny*off+sag*env; // sag always hangs downward
+    if(tangled){x+=Math.sin(now/25+i)*1.5;y+=Math.cos(now/20+i*1.7)*1.5;}
+    P(x,Math.min(y,wy));}
+  ctx.globalAlpha=1;
+  if(!dropped){
+    // the float leads, still flying: rush lines and the hook streaming behind it
+    ctx.fillStyle=C.ink;
+    for(let k=0;k<3;k++){const ph=((now/60+k*7)%14); ctx.globalAlpha=.55*(1-ph/14); P(sx-6-ph-k*2,sy-3+k*2,3+k,1);}
+    ctx.globalAlpha=.75; P(sx-1,sy+2); P(sx-2,sy+3); P(sx-3,sy+3); ctx.globalAlpha=1;
+    const fl=Math.round(Math.sin(now/70)*.6);
+    ctx.fillStyle="#c9ccd6"; P(sx-4,sy+3+fl); P(sx-5,sy+4+fl); P(sx-4,sy+5+fl);
+    drawBobber(Math.round(sx),Math.round(sy));
+  }
+  // particles
+  for(let i=airParts.length-1;i>=0;i--){const p=airParts[i];
+    if(p.ring){const a=(now-p.t)/650; if(a>1){airParts.splice(i,1);continue;} ctx.fillStyle=C.ink; ctx.globalAlpha=1-a; for(let k=0;k<16;k++){const t=k/16*Math.PI*2;P(p.x+Math.cos(t)*(2+a*8),p.y+Math.sin(t)*(1+a*2));} continue;}
+    p.x+=p.vx*dt; p.y+=p.vy*dt; if(p.g) p.vy+=.1*dt; p.life-=(p.trail?.07:.03)*dt;
+    if(p.life<=0||(p.g&&p.y>wy+1)){airParts.splice(i,1);continue;} ctx.globalAlpha=Math.min(1,p.life*1.5); ctx.fillStyle=p.col; P(p.x,p.y);}
+  ctx.globalAlpha=1;
+  // wind
+  for(let i=airStreaks.length-1;i>=0;i--){const s=airStreaks[i]; s.x+=s.v*dt; if(s.leaf!==undefined){s.leaf+=.2*dt;s.y+=Math.sin(s.leaf)*.5*dt;}
+    if(s.x>AW+10){airStreaks.splice(i,1);continue;} ctx.globalAlpha=s.a; ctx.fillStyle=s.col; P(s.x,s.y,Math.round(s.len),1); if(s.len>6) P(s.x+s.len*.3,s.y-1,Math.round(s.len*.4),1);}
+  ctx.globalAlpha=1;
+  ctx.restore();
+  mctx.drawImage(buf,0,0,LW,LH,0,0,cv.width,cv.height);
+  if(reel&&now>=reel.t0){sceneMode="wide";view=reel.view;lure.d=reel.from;lureX=X0+(lure.d/view)*(XMAX-X0);cam.z=2.4;cam.cx=lureX-14;cam.cy=WY-8;splash(lureX,true);popText(reel.fish?(reel.tier==="m"?"MYTHIC BITE!?":reel.tier==="l"?"LEGENDARY BITE!":reel.lucky?"LUCKY BITE!":"FISH ON!"):"Nothing bit",reel.fish?"c3 r3":"c1",50,30,1300);}
+}
+
+function frame(now){
+  const dt=Math.min(50,now-last)/16.67; last=now;
+  if(phase==="play"){
+    const left=Math.max(0,(endAt-now)/1000);
+    $("bar").style.transform=`scaleX(${left/CAST_SECS})`; $("secs").textContent=Math.ceil(left);
+    $("timerrow").classList.toggle("low",left<=10);
+    $("gust").hidden=now>=gustUntil;
+    if(now<gustUntil&&Math.random()<.25*dt) airStreaks.push({x:-5,y:4+Math.random()*LH*.35,v:1.8+Math.random(),len:6,col:C.ember,a:.7});
+    if(left<=0) endCast();
+  }
+  tension+=(tensionTarget-tension)*.15*dt;
+  flowBoost=Math.max(0,flowBoost-.02*dt); flowT+=dt*(1+flowBoost);
+  if(wind){const p=Math.min(1,(now-wind.t0)/wind.dur); lure.d=lerp(wind.from,wind.to,ease(p)); if(p>=1){lure.d=wind.to;wind=null;}}
+  if(sceneMode==="air") drawAir(now,dt); else drawWide(now,dt);
+  if(now<flashUntil){mctx.fillStyle="#fff7e6";mctx.globalAlpha=(flashUntil-now)/120*.7;mctx.fillRect(0,0,cv.width,cv.height);mctx.globalAlpha=1;}
+  $("distLabel").textContent=`${Math.round(phase==="final"?results.reduce((a,r)=>a+r.dist,0):(phase==="reel"||phase==="between")?dist:lure.d)} m`;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+
+</body></html>
