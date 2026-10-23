@@ -1,0 +1,211 @@
+# Category bank for the daily puzzle generator.
+# Each day takes one category from each group, skipping any used in the last 120 days.
+# Add lines as "group: Category name". When a group runs dry, Claude invents one.
+
+everyday: Animals of the jungle
+everyday: Farm animals
+everyday: Insects
+everyday: Breakfast foods
+everyday: Desserts
+everyday: Indian sweets
+everyday: Street foods
+everyday: Pizza toppings
+everyday: Cheeses
+everyday: Drinks without alcohol
+everyday: Cocktails
+everyday: Kitchen utensils
+everyday: Things in a bathroom
+everyday: Furniture
+everyday: Clothing items
+everyday: Footwear
+everyday: Jewellery
+everyday: Board games
+everyday: Card games
+everyday: Toys
+everyday: Flowers
+everyday: Trees
+everyday: Nuts and seeds
+everyday: Breads
+everyday: Pasta shapes
+everyday: Rice dishes
+everyday: Curries
+everyday: Breakfast cereals
+everyday: Chocolate bars
+everyday: Ice cream flavours
+everyday: Snacks and chips brands
+everyday: Soft drink brands
+everyday: Fast food chains
+everyday: Coffee drinks
+everyday: Tea varieties
+everyday: Hairstyles
+everyday: Jobs and occupations
+everyday: Tools in a toolbox
+everyday: Things that fly
+everyday: Weather words
+everyday: Shapes
+everyday: Units of measurement
+everyday: School subjects
+everyday: Office supplies
+everyday: Sea creatures
+everyday: Reptiles
+everyday: Mammals
+everyday: Dinosaurs
+everyday: Cat breeds
+everyday: Yoga poses
+everyday: Martial arts
+everyday: Dance styles
+everyday: Gym exercises
+everyday: Emotions
+everyday: Body of water words
+everyday: Kinds of boats
+everyday: Vehicles
+everyday: Sandwiches
+everyday: Salad ingredients
+everyday: Soups
+everyday: Condiments and sauces
+everyday: Things at a wedding
+everyday: Things at the beach
+everyday: Camping gear
+
+world: Countries in Europe
+world: Countries in South America
+world: Countries in the Americas
+world: Islands
+world: Island nations
+world: World capitals
+world: Indian states and union territories
+world: Indian cities
+world: US cities
+world: Cities in China
+world: Cities in Japan
+world: Rivers
+world: Mountains and peaks
+world: Deserts
+world: Lakes
+world: Seas and oceans
+world: Volcanoes
+world: Famous landmarks
+world: Wonders and ancient sites
+world: Languages
+world: Currencies
+world: National dishes
+world: Cuisines of the world
+world: Airlines
+world: Airports by city or name
+world: Football clubs
+world: Cricket-playing nations
+world: IPL teams past and present
+world: NBA teams
+world: NFL teams
+world: Formula 1 circuits
+world: Formula 1 drivers past and present
+world: Tennis Grand Slam champions
+world: Cricketers
+world: Footballers
+world: Olympic gold medallists from India
+world: Universities
+world: Museums
+world: Religious festivals
+world: Holidays and festivals around the world
+world: World leaders past and present
+world: Indian prime ministers and presidents
+world: US presidents
+world: Kings and queens
+world: Empires and dynasties
+world: Famous scientists
+world: Inventors
+world: Explorers
+world: Philosophers
+world: Nobel Prize winners
+world: Space missions
+world: Planets moons and dwarf planets
+world: Constellations
+world: Wars and battles
+world: Ancient civilisations
+world: UNESCO World Heritage Sites in India
+world: Hill stations
+world: Beaches
+world: National parks
+world: Stadiums
+world: Train and metro systems
+world: Car models
+
+deep: Bollywood films
+deep: Hollywood films
+deep: Tollywood films
+deep: Oscar Best Picture winners
+deep: Movie villains
+deep: Pixar characters
+deep: Harry Potter characters
+deep: Lord of the Rings characters
+deep: Star Wars characters
+deep: Marvel films
+deep: Anime series
+deep: Pokemon
+deep: Video games
+deep: Video game consoles
+deep: Video game characters
+deep: Cartoon characters
+deep: TV sitcoms
+deep: Netflix original series
+deep: Game of Thrones characters
+deep: Friends characters
+deep: Bollywood actors
+deep: Hollywood actors
+deep: Singers
+deep: Bands
+deep: Rappers
+deep: Music genres
+deep: Classical composers
+deep: Ragas
+deep: Novels
+deep: Authors
+deep: Shakespeare plays
+deep: Poets
+deep: Comic book villains
+deep: Characters from Indian mythology
+deep: Norse gods
+deep: Egyptian gods
+deep: Mythical creatures
+deep: Fairy tales
+deep: Nursery rhymes
+deep: Tech companies
+deep: Startups and unicorns
+deep: Smartphone brands
+deep: Fashion brands
+deep: Sportswear brands
+deep: Watch brands
+deep: Beer brands
+deep: Websites
+deep: Apps on your phone
+deep: Operating systems
+deep: Programming terms
+deep: Famous algorithms
+deep: Cryptocurrencies
+deep: Gemstones
+deep: Minerals and rocks
+deep: Diseases
+deep: Bones of the body
+deep: Phobias
+deep: Words for groups of animals
+deep: Chess terms
+deep: Cricket terms
+deep: Football terms
+deep: Poker hands and card terms
+deep: Yoga and Ayurveda words
+deep: Art movements
+deep: Architectural styles
+deep: Fonts
+deep: Shades of blue
+deep: Knots
+deep: Sailing terms
+deep: Fishing terms
+deep: Clouds
+deep: Famous ships
+deep: Famous horses
+deep: Famous dogs
+deep: Detectives in fiction
+deep: Superhero films
+deep: James Bond films
+deep: Disney villains
+deep: Broadway musicals
