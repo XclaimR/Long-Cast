@@ -79,7 +79,9 @@ h2{font-family:var(--display);font-weight:700;font-size:1.75rem;line-height:1.1;
 #bar{height:100%;width:100%;background:var(--ember);transform-origin:left}
 .timerrow.low #bar{background:var(--bad);animation:blink .4s steps(2) infinite}
 .timerrow.low #secs{color:var(--bad)}
-#secs{font-family:var(--mono);font-variant-numeric:tabular-nums;width:3ch;text-align:right}
+#secs.plus::after{content:attr(data-add);position:absolute;right:0;bottom:100%;font-size:.75rem;color:var(--fu);white-space:nowrap;animation:rise 1s steps(10) forwards}
+#secs.plus{animation:bump .35s steps(4)}
+#secs{position:relative;font-family:var(--mono);font-variant-numeric:tabular-nums;width:3ch;text-align:right}
 .typed{display:flex;align-items:center;min-height:48px;padding:6px 12px;font-size:1.3rem;border:3px solid var(--shadow);background:var(--panel);box-shadow:inset 3px 3px 0 #0003;overflow:hidden;white-space:nowrap}
 .typed.empty::before{content:"Tap letters, then Blow";color:var(--muted);font-size:1rem;order:2;margin-left:8px}
 .typed .caret{order:1}
@@ -231,7 +233,7 @@ pre{font-family:var(--mono);font-size:.75rem;background:var(--panel);border:3px 
     <ul class="rules">
       <li><b class="c1">Common</b> answers are a breeze: +25 m. <b class="c2">Uncommon</b> is a wind: +45 m. <b class="c3">Rare</b> is a gale: +80 m.</li>
       <li>Land 3 answers within 6 seconds to catch a tailwind: ×1.5 for 5 seconds.</li>
-      <li>Wrong or repeated answers tangle the line and cost you time.</li>
+      <li>You start with 20 seconds. Every correct answer adds time (2, 3 or 4 seconds by rarity, up to a full 20). Wrong or repeated answers tangle the line and cost time. When you run out of ideas, the line falls.</li>
       <li>Further casts reach rarer fish: common, uncommon, rare, then legendary. Any cast can get a lucky bite, so keep filling your log book.</li>
     </ul>
   </section>
@@ -290,7 +292,9 @@ let DAY = {
   ]
 };
 const PTS={1:25,2:45,3:80}, WIND=["","breeze","wind","gale"];
-const CAST_SECS=40;
+// Timer bank: start with 20 s, correct answers add time (by rarity), capped at 20 s.
+// Bonuses shrink 10% after every 10 answers in a cast, so every round ends eventually.
+const START_SECS=20, MAX_BANK=20, TIME_BONUS={1:2,2:3,3:4};
 
 // Fish by rarity tier: c common, u uncommon, r rare, l legendary
 const FISH=[
@@ -501,7 +505,7 @@ function startCast(){
   $("tagName").textContent=c.cat; $("tagHint").textContent=c.hint;
   $("chips").innerHTML=""; setMsg("Winding up…");
   $("castLabel").textContent=`Cast ${castIdx+1} of 3`;
-  $("bar").style.transform="scaleX(1)"; $("secs").textContent=CAST_SECS;
+  $("bar").style.transform=`scaleX(${START_SECS/MAX_BANK})`; $("secs").textContent=START_SECS;
   $("kb").classList.remove("off"); $("logBtn").hidden=true;
   phase="casting";
   showPanel("play"); setPlaying(true); castAnim={t0:performance.now(),landed:false};
@@ -527,11 +531,15 @@ function submit(){
   if(found.has(hit.name)) return tangle(`${hit.name} is already out there.`,1);
   const now=performance.now(), gC=[...found.values()].filter(v=>v.g).length, gust=now<gustUntil&&gC<found.size-gC, m=Math.round(PTS[hit.tier]*(gust?1.5:1));
   found.set(hit.name,{tier:hit.tier,m,g:gust?1:0});
+  const bonus=Math.round(TIME_BONUS[hit.tier]*Math.pow(.9,Math.floor((found.size-1)/10))*10)/10;
+  const before=endAt; endAt=Math.min(now+MAX_BANK*1000,endAt+bonus*1000);
+  const added=Math.max(0,Math.round((endAt-before)/100)/10);
+  const sx=$("secs"); sx.dataset.add=added?`+${added}s`:"full"; sx.classList.remove("plus"); void sx.offsetWidth; sx.classList.add("plus");
   const from=lure.d; dist+=m;
   recent=recent.filter(t=>now-t<6000); recent.push(now);
   if(!gust&&recent.length>=3){gustUntil=now+5000;recent=[];}
   flash("good");
-  setMsg(`${hit.name}: ${["","common","uncommon","rare"][hit.tier]}, a ${WIND[hit.tier]}${gust?" with tailwind":""}`);
+  setMsg(`${hit.name}: ${["","common","uncommon","rare"][hit.tier]}, a ${WIND[hit.tier]}${gust?" with tailwind":""}${added?`, +${added}s`:", time is full"}`);
   const chip=document.createElement("span"); chip.className=`chip t${hit.tier}`;
   chip.innerHTML=`<span class="c${hit.tier}"></span><b class="c${hit.tier}">+${m}</b>`; chip.firstChild.textContent=hit.name;
   $("chips").prepend(chip);
@@ -774,7 +782,7 @@ const WATER=["#2a6f78","#1d5c66","#164f58","#12474f","#0f3d45","#0c333b","#0b2a3
 let lureX=X0, view=150, flowT=0, flowBoost=0, last=performance.now();
 const lure={d:0};
 let wind=null, reel=null, castAnim=null, hanging=null, tension=0, tensionTarget=0, twitch=0, tangleUntil=0, shakeUntil=0, shakeAmp=1;
-let sceneMode="wide", airIntro=null, dropT0=0, camD=0, gustAmp=0, flashUntil=0, lastSy=0;
+let airAlt=1-START_SECS/MAX_BANK, sceneMode="wide", airIntro=null, dropT0=0, camD=0, gustAmp=0, flashUntil=0, lastSy=0;
 const cam={cx:LW/2,cy:80,z:1};
 const ripples=[], parts=[], streaks=[], airParts=[], airStreaks=[];
 const clouds=[{x:20,y:12,s:1},{x:95,y:20,s:.7},{x:160,y:8,s:1.2}];
@@ -784,7 +792,7 @@ function sizeScene(){const r=cv.getBoundingClientRect(); if(!r.width) return;
   if(cv.height!==LH*K) sizeBufs();}
 sizeBufs(); new ResizeObserver(sizeScene).observe(cv);
 let hangFish=null, hangT=0; const fishLen=f=>f.id==="oarfish"?22:14;
-function resetScene(){sceneMode="wide";airIntro=null;camD=0;gustAmp=0;cam.z=1;airStreaks.length=0;airParts.length=0;}
+function resetScene(){airAlt=1-START_SECS/MAX_BANK;sceneMode="wide";airIntro=null;camD=0;gustAmp=0;cam.z=1;airStreaks.length=0;airParts.length=0;}
 
 const P=(x,y,w=1,h=1)=>ctx.fillRect(Math.round(x),Math.round(y),w,h);
 function plotQuad(x0,y0,cx,cy,x1,y1,col,alpha=1){
@@ -1040,16 +1048,18 @@ function drawAir(now,dt){
   camD+=(lure.d-camD)*.028*dt;
   // lure position
   let sx=LX+(lure.d-camD)*PXM, sy;
-  const left=phase==="play"?Math.max(0,(endAt-now)/1000):CAST_SECS;
+  const left=phase==="play"?Math.max(0,(endAt-now)/1000):START_SECS;
   // still at the peak of the throw: starts high, slowly falls as time runs out
-  const alt=1-left/CAST_SECS, hoverY=lerp(AH*.32,AH*.68,alt*alt);
+  // float height follows the time bank: answers lift it, silence lets it sink
+  airAlt+=((1-left/MAX_BANK)-airAlt)*.08*dt;
+  const alt=clamp(airAlt,0,1), hoverY=lerp(AH*.3,AH*.72,alt);
   sy=hoverY+(now-twitch<110?-1:0);
   if(wind){const p=Math.min(1,(now-wind.t0)/wind.dur); sy-=Math.sin(Math.PI*p)*(wind.tier*4.5);}
   if(airIntro){
     const q=Math.min(1,(now-airIntro.t0)/700), e=ease(q);
     sx=lerp(-8,LX,e); sy=lerp(AH+6,AH*.32,e);
     if(Math.random()<.8) airParts.push({x:sx,y:sy,vx:0,vy:0,life:.5,col:C.ember,trail:1});
-    if(q>=1){airIntro=null;if(phase==="casting"){phase="play";endAt=now+CAST_SECS*1000;setMsg("It's airborne. Name as many as you can!");}}
+    if(q>=1){airIntro=null;if(phase==="casting"){phase="play";endAt=now+START_SECS*1000;setMsg("It's airborne. Name as many as you can!");}}
   }
   let dropped=false;
   if(reel&&now<reel.t0){
@@ -1144,8 +1154,8 @@ function frame(now){
   const dt=Math.min(50,now-last)/16.67; last=now;
   if(phase==="play"){
     const left=Math.max(0,(endAt-now)/1000);
-    $("bar").style.transform=`scaleX(${left/CAST_SECS})`; $("secs").textContent=Math.ceil(left);
-    $("timerrow").classList.toggle("low",left<=10);
+    $("bar").style.transform=`scaleX(${left/MAX_BANK})`; $("secs").textContent=Math.ceil(left);
+    $("timerrow").classList.toggle("low",left<=5);
     $("gust").hidden=now>=gustUntil;
     if(now<gustUntil&&Math.random()<.25*dt) airStreaks.push({x:-5,y:4+Math.random()*LH*.35,v:1.8+Math.random(),len:6,col:C.ember,a:.7});
     if(left<=0) endCast();
