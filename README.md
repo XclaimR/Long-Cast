@@ -38,3 +38,23 @@ Write the puzzle as plain JSON (`{"casts":[{"cat","hint","c","u","r"}, ...]}`) a
 If you ever edit puzzle files directly, run `python3 scripts/generate_puzzle.py encode-all` afterwards to re-encode them and rebuild `index.json`.
 
 Encoding only stops casual peeking. The game has to decode puzzles to play them, so someone determined could still read them from the game's code.
+
+## Saving progress and daily comparisons (Cloudflare)
+
+On GitHub Pages the game saves everything on the player's device only, and the results screen shows a sample crowd. Hosting the same repo on Cloudflare Pages switches on the small server in `functions/`:
+
+- `functions/api/log.js` backs up each player's log book under their anonymous id.
+- `functions/api/score.js` saves each player's first round of the day, re-scoring it from their answers.
+- `functions/api/stats.js` powers "Further than X% of anglers", the chart and the comparison table.
+
+Everything below works from a phone browser.
+
+1. Log in at dash.cloudflare.com (a free account is enough).
+2. **Create the database:** Storage & Databases > D1 > Create. Name it `long-cast`. Open it, go to the Console tab, paste the contents of `schema.sql`, and run it.
+3. **Connect the repo:** Workers & Pages > Create > Pages > Connect to Git. Allow access to `XclaimR/Long-Cast` and pick it. Framework preset: None. Build command: leave empty. Build output directory: `/`. Save and deploy.
+4. **Link the database:** in the new Pages project, Settings > Bindings > Add > D1 database. Variable name `DB`, database `long-cast`. Save.
+5. **Redeploy** so the link takes effect: Deployments > the latest one > ... > Retry deployment.
+6. Play at the `*.pages.dev` address Cloudflare shows. After a round, the results screen should say "Further than X% of anglers today" without the sample-crowd note.
+
+Every push to `main`, including the daily puzzle task, redeploys automatically. GitHub Pages can stay on as well; it just won't save progress.
+
