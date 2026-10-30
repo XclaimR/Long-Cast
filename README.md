@@ -41,20 +41,25 @@ Encoding only stops casual peeking. The game has to decode puzzles to play them,
 
 ## Saving progress and daily comparisons (Cloudflare)
 
-On GitHub Pages the game saves everything on the player's device only, and the results screen shows a sample crowd. Hosting the same repo on Cloudflare Pages switches on the small server in `functions/`:
+On GitHub Pages the game saves everything on the player's device only, and the results screen shows a sample crowd. Hosting the same repo as a Cloudflare Worker switches on the small server in `src/`:
 
-- `functions/api/log.js` backs up each player's log book under their anonymous id.
-- `functions/api/score.js` saves each player's first round of the day, re-scoring it from their answers.
-- `functions/api/stats.js` powers "Further than X% of anglers", the chart and the comparison table.
+- `src/worker.js` sends `/api/*` to the handlers and serves the game for everything else.
+- `src/api/log.js` backs up each player's log book under their anonymous id.
+- `src/api/score.js` saves each player's first round of the day, re-scoring it from their answers.
+- `src/api/stats.js` powers "Further than X% of anglers", the chart and the comparison table.
 
-Everything below works from a phone browser.
+`wrangler.jsonc` configures the Worker, and `.assetsignore` keeps the server code and scripts from being served as website files.
 
-1. Log in at dash.cloudflare.com (a free account is enough).
-2. **Create the database:** Storage & Databases > D1 > Create. Name it `long-cast`. Open it, go to the Console tab, paste the contents of `schema.sql`, and run it.
-3. **Connect the repo:** Workers & Pages > Create > Pages > Connect to Git. Allow access to `XclaimR/Long-Cast` and pick it. Framework preset: None. Build command: leave empty. Build output directory: `/`. Save and deploy.
-4. **Link the database:** in the new Pages project, Settings > Bindings > Add > D1 database. Variable name `DB`, database `long-cast`. Save.
-5. **Redeploy** so the link takes effect: Deployments > the latest one > ... > Retry deployment.
-6. Play at the `*.pages.dev` address Cloudflare shows. After a round, the results screen should say "Further than X% of anglers today" without the sample-crowd note.
+Setup (works from a phone browser):
+
+1. In dash.cloudflare.com, create a D1 database named `long-cast` (Storage & Databases > D1). In its Console, run the SQL in `schema.sql`.
+2. Copy the database ID from the D1 page into `wrangler.jsonc` under `d1_databases` (see below), and push.
+3. Create a Worker from this repo (Workers & Pages > Create > Import a repository). Leave the build command empty and the deploy command as `npx wrangler deploy`. The Worker name must match `name` in `wrangler.jsonc` (`long-cast`).
+
+```jsonc
+"d1_databases": [{ "binding": "DB", "database_name": "long-cast", "database_id": "<id from the D1 page>" }]
+```
+
+Until the database is linked, the game still works and saves on the device; the API answers "Database not linked yet".
 
 Every push to `main`, including the daily puzzle task, redeploys automatically. GitHub Pages can stay on as well; it just won't save progress.
-

@@ -1,6 +1,6 @@
 // GET  /api/log?player=<id>            -> { log }
 // POST /api/log { player, log }        -> merges (keeps the higher count and best size) and returns { log }
-import { json, isPlayer, isDay } from "../_lib.js";
+import { json, isPlayer, isDay } from "../lib.js";
 
 async function read(env, player) {
   const { results } = await env.DB.prepare(

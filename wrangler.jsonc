@@ -1,0 +1,7 @@
+{
+  // Cloudflare Worker: serves the game and the /api endpoints.
+  "name": "long-cast",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-01-01",
+  "assets": { "directory": ".", "binding": "ASSETS" }
+}

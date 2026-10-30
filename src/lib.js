@@ -1,5 +1,5 @@
-// Shared helpers for the Long Cast API (Cloudflare Pages Functions + D1).
-// Only runs on Cloudflare Pages. On GitHub Pages these files are ignored and the game
+// Shared helpers for the Long Cast API (Cloudflare Worker + D1).
+// Only runs on Cloudflare. On GitHub Pages these files are ignored and the game
 // falls back to saving on the device.
 
 // Must match the game: metres per answer by rarity, x1.5 during a tailwind.

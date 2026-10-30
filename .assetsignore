@@ -1,0 +1,9 @@
+# Files Cloudflare should not serve as part of the website
+.git
+src
+scripts
+schema.sql
+wrangler.jsonc
+README.md
+categories.txt
+.assetsignore

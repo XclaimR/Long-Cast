@@ -1,6 +1,6 @@
 // POST /api/score  { player, day, bestTier, casts:[{answers:[{name,g}]}] }
 // Re-scores the round and stores it. Only a player's first round of the day counts.
-import { json, isPlayer, loadPuzzle, scoreRound, TIERS } from "../_lib.js";
+import { json, isPlayer, loadPuzzle, scoreRound, TIERS } from "../lib.js";
 
 export async function onRequestPost({ request, env }) {
   let body;

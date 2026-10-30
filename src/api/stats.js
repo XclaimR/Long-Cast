@@ -1,6 +1,6 @@
 // GET /api/stats?day=YYYY-MM-DD&player=<id>
 // How today's anglers did: percentile, distance histogram, per-cast averages and top 10%.
-import { json, isDay, isPlayer } from "../_lib.js";
+import { json, isDay, isPlayer } from "../lib.js";
 
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
