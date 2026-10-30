@@ -22,6 +22,13 @@ html,body{height:100%;overflow:hidden}
 /* Single-screen app: everything lives inside one fixed viewport-height frame; only the log book and help scroll internally */
 .app{position:fixed;inset:0;max-width:560px;margin:0 auto;box-sizing:border-box;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:max(10px,env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
 .app>header{flex:none}
+.hint a{color:var(--ember)}
+.angler{display:flex;flex-direction:column;gap:6px;border-top:3px solid var(--shadow);margin-top:14px;padding-top:12px}
+.codebox{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--panel);border:3px solid var(--shadow);padding:8px 10px}
+.codebox b{font-family:var(--mono);font-size:1.05rem;letter-spacing:.06em;user-select:all}
+.redeem{display:flex;gap:8px}
+.redeem input{flex:1;min-width:0;font:inherit;font-family:var(--mono);text-transform:uppercase;padding:8px 10px;border:3px solid var(--shadow);background:var(--panel);color:var(--ink);border-radius:0}
+.redeem input:focus{outline:2px solid var(--ember);outline-offset:0}
 #archive{flex:1 1 auto;min-height:0;overflow-y:auto}
 .row.center{justify-content:center}
 .days{display:flex;flex-direction:column;gap:8px}
@@ -268,8 +275,17 @@ pre{font-family:var(--mono);font-size:.75rem;background:var(--panel);border:3px 
       <button id="closeLog" class="ghost small" type="button">Back</button>
     </div>
     <div class="progress"><div id="logBar"></div></div>
-    <p class="hint">Grey fish are still out there. Longer casts reach rarer fish, and any cast can land a lucky bite from a rarer tier.</p>
+    <p class="hint">Grey fish are still out there. Longer casts reach rarer fish, and any cast can land a lucky bite from a rarer tier. <a href="#angler" id="toAngler">Playing on another device?</a></p>
     <div class="book" id="book"></div>
+    <div class="angler" id="angler">
+      <p class="eyebrow">Angler code</p>
+      <p class="hint">Your private code moves your log book and past results to another phone or browser. Anyone with it can play as you, so keep it to yourself.</p>
+      <div class="row"><button id="showCode" type="button" class="ghost small">Show my code</button></div>
+      <div id="codeBox" class="codebox" hidden><b id="codeText"></b><button id="copyCode" type="button" class="small">Copy</button></div>
+      <p class="hint" style="margin-top:6px">Have a code from another device?</p>
+      <form id="redeemForm" class="redeem"><input id="codeInput" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-JKMN" maxlength="16"><button type="submit" class="small">Load</button></form>
+      <p class="note" id="codeMsg"></p>
+    </div>
   </section>
 </div>
 
@@ -695,7 +711,19 @@ let MODE="today", TODAY=null;
 const resKey=id=>"longcast-result-"+id;
 function saveResult(){
   try{localStorage.setItem(resKey(DAY.id),JSON.stringify({casts:results.map(r=>({cat:r.cat,dist:r.dist,n:r.n,fish:r.fish?{id:r.fish.f.id,cm:r.fish.cm,lucky:r.fish.lucky}:null}))}));}catch(e){}
+  syncResults();
 }
+// Back up finished rounds under the player id and pull down any from other devices (via angler code).
+async function syncResults(){
+  if(!PLAYER) return;
+  const mine={};
+  try{ for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i); if(k&&k.startsWith("longcast-result-")) mine[k.slice(16)]=localStorage.getItem(k);} }catch(e){ return; }
+  try{
+    const res=await api("results",{method:"POST",body:JSON.stringify({player:PLAYER,results:mine})});
+    for(const [day,data] of Object.entries(res.results||{})){ try{ if(!localStorage.getItem(resKey(day))) localStorage.setItem(resKey(day),data); }catch(e){} }
+  }catch(e){}
+}
+const withTimeout=(p,ms)=>Promise.race([p,new Promise(r=>setTimeout(r,ms))]);
 function savedResult(id){
   try{const j=JSON.parse(localStorage.getItem(resKey(id))||"null"); if(!j) return null;
     return j.casts.map(c=>{const f=c.fish&&FISH.find(x=>x.id===c.fish.id); return {cat:c.cat,dist:c.dist,n:c.n,answers:[],fish:f?{f,cm:c.fish.cm,lucky:c.fish.lucky}:null};});
@@ -747,7 +775,41 @@ async function openArchive(){
 $("pastBtn").onclick=openArchive; $("pastBtn2").onclick=openArchive;
 $("closeArchive").onclick=()=>showPanel(prevPanel);
 $("todayBtn").onclick=goToday;
-(async()=>{ await loadPuzzle(); TODAY=DAY; setDayLabel(); const prev=savedResult(DAY.id); if(prev){results=prev; finish(true);} })();
+(async()=>{ await Promise.all([loadPuzzle(),withTimeout(syncResults(),2500)]); TODAY=DAY; setDayLabel(); const prev=savedResult(DAY.id); if(prev){results=prev; finish(true);} })();
+
+// ---------- angler code: move progress between devices without logging in ----------
+$("showCode").onclick=async()=>{
+  const btn=$("showCode"); btn.disabled=true; $("codeMsg").textContent="";
+  try{ const r=await api("code",{method:"POST",body:JSON.stringify({player:PLAYER})}); $("codeText").textContent=r.code; $("codeBox").hidden=false; btn.hidden=true; }
+  catch(e){ $("codeMsg").textContent="Angler codes need the game's server, which isn't reachable right now. Try again in a bit."; }
+  btn.disabled=false;
+};
+$("toAngler").onclick=e=>{e.preventDefault();$("angler").scrollIntoView({behavior:"smooth",block:"start"});};
+$("copyCode").onclick=async()=>{
+  const t=$("codeText").textContent;
+  try{ await navigator.clipboard.writeText(t); $("copyCode").textContent="Copied"; }
+  catch(e){ const r=document.createRange(); r.selectNodeContents($("codeText")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); $("copyCode").textContent="Selected"; }
+  setTimeout(()=>$("copyCode").textContent="Copy",1600);
+};
+$("redeemForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const code=$("codeInput").value.trim(), msg=$("codeMsg"); if(!code) return;
+  msg.textContent="Checking code…";
+  let r;
+  try{
+    const res=await fetch(`${API}/redeem`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({code})});
+    r=await res.json(); if(!res.ok) throw new Error(r.error||"That code didn't work.");
+  }catch(err){ msg.textContent=err.message&&!/fetch|JSON/.test(err.message)?err.message:"Angler codes need the game's server, which isn't reachable right now."; return; }
+  if(r.player===PLAYER){ msg.textContent="That's already this device's code."; return; }
+  // switch to that angler; this device's fish and rounds are merged in, not lost
+  PLAYER=r.player; try{ localStorage.setItem("longcast-player",PLAYER); }catch(e2){}
+  await syncLog(); await syncResults();
+  $("codeInput").value=""; $("codeBox").hidden=true; $("showCode").hidden=false;
+  // if today's round was already played on the other device, show that result instead of a fresh round
+  if(phase==="idle"&&TODAY&&savedResult(TODAY.id)){ DAY=TODAY; MODE="today"; results=savedResult(TODAY.id); finish(true); }
+  openLog();
+  $("codeMsg").textContent=`Loaded angler ${r.code}. Your log book and past results are now on this device.`;
+});
 syncLog();
 $("helpBtn").onclick=()=>showPanel("help");
 $("closeHelp").onclick=()=>showPanel(null);

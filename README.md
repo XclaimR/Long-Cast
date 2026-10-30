@@ -47,6 +47,9 @@ On GitHub Pages the game saves everything on the player's device only, and the r
 - `src/api/log.js` backs up each player's log book under their anonymous id.
 - `src/api/score.js` saves each player's first round of the day, re-scoring it from their answers.
 - `src/api/stats.js` powers "Further than X% of anglers", the chart and the comparison table.
+- `src/api/code.js`, `src/api/redeem.js` and `src/api/results.js` handle angler codes: a private code like `ABCD-EFGH-JKMN`, shown at the bottom of the log book, that moves a player's log book and past results to another device. No login or personal data.
+
+The Worker creates its database tables on first use, so new tables don't need a manual step in the D1 console.
 
 `wrangler.jsonc` configures the Worker, and `.assetsignore` keeps the server code and scripts from being served as website files.
 

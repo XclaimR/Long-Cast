@@ -1,4 +1,4 @@
--- Long Cast database (Cloudflare D1). Paste this into the D1 console once.
+-- Long Cast database (Cloudflare D1). The Worker also creates these tables itself on first use.
 
 -- One row per player per day: their first round is the one that counts.
 CREATE TABLE IF NOT EXISTS scores (
@@ -20,4 +20,19 @@ CREATE TABLE IF NOT EXISTS logbook (
   best INTEGER NOT NULL,
   first_day TEXT NOT NULL,
   PRIMARY KEY (player, fish)
+);
+
+-- Angler codes: a private code that moves a player's progress to another device.
+CREATE TABLE IF NOT EXISTS anglers (
+  code TEXT PRIMARY KEY,
+  player TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL
+);
+
+-- Each finished round, so past results travel with the angler code.
+CREATE TABLE IF NOT EXISTS results (
+  player TEXT NOT NULL,
+  day TEXT NOT NULL,
+  data TEXT NOT NULL,
+  PRIMARY KEY (player, day)
 );
