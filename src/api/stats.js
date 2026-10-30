@@ -16,7 +16,7 @@ export async function onRequestGet({ request, env }) {
   const me = isPlayer(player) ? rows.find((r) => r.player === player) : null;
   const pick = (k) => {
     const v = rows.map((r) => r[k]).sort((a, b) => a - b);
-    return { avg: Math.round(v.reduce((a, b) => a + b, 0) / N), p90: v[Math.floor(0.9 * (N - 1))] };
+    return { avg: Math.round(v.reduce((a, b) => a + b, 0) / N), p90: v[Math.ceil(0.9 * (N - 1))] };
   };
   const max = Math.max(...rows.map((r) => r.total));
   const size = Math.max(50, Math.ceil(max / 12 / 50) * 50);

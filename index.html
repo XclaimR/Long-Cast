@@ -153,6 +153,7 @@ table.cmp{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
 .cmp th:first-child,.cmp td:first-child{text-align:left}
 .cmp td{padding:4px 0;border-top:2px solid var(--shadow);text-align:right;white-space:nowrap}
 .cmp td:first-child{white-space:normal;padding-right:8px}
+.cmp td+td,.cmp th+th{padding-left:14px}
 .cmp td.up{color:var(--fu)}.cmp td.top{color:var(--fl)}.cmp td.down{color:var(--muted)}
 .cmp tr.tot td{font-weight:700;border-top:3px solid var(--line)}
 .haul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
@@ -630,7 +631,7 @@ function finish(review){
   $("castLabel").textContent=MODE==="today"?"Done for today":`Archive · ${DAY.label}`;
   showPanel("final");
   const bar=d=>"🌊".repeat(Math.max(1,Math.min(6,Math.round(d/120))));
-  submitAndCompare(total,MODE==="today"&&!review);
+  submitAndCompare(total,MODE==="today"&&(!review||needsSending(savedMeta(DAY.id))));
   $("share").textContent=`Long Cast · ${DAY.label}${MODE==="archive"?" (archive)":""}\n`+results.map((r,i)=>`🎣${i+1} ${bar(r.dist)} ${r.dist}m ${r.fish?r.fish.f.name+({c:"",u:" ✦",r:" ✦✦",l:" ★",m:" 🌈"}[r.fish.f.tier]):"-"}`).join("\n")+`\n${total}m total`;
 }
 async function submitAndCompare(total,submit){
@@ -639,19 +640,19 @@ async function submitAndCompare(total,submit){
   try{
     if(!PLAYER) throw new Error("no id");
     if(submit){
-      const best=results.reduce((b,r)=>r.fish&&TIERS.indexOf(r.fish.f.tier)>TIERS.indexOf(b||"")?r.fish.f.tier:b,null);
-      const sub=await api("score",{method:"POST",body:JSON.stringify({player:PLAYER,day:DAY.id,bestTier:best,casts:results.map(r=>({answers:r.answers}))})});
+      const sub=await sendRound(DAY.id,savedMeta(DAY.id));
       mine=sub.official;
     }
     stats=await api(`stats?day=${encodeURIComponent(DAY.id)}&player=${encodeURIComponent(PLAYER)}`);
-    if(stats.players&&stats.percentile==null){ // archive round: place it within that day's spread
+    stats.counted=stats.percentile!=null;
+    if(stats.players&&stats.percentile==null){ // not in the data (archive round, or not sent yet): estimate a position
       const b=Math.floor(mine.total/stats.hist.size), below=stats.hist.counts.slice(0,b).reduce((a,v)=>a+v,0)+(stats.hist.counts[b]||0)/2;
       stats.percentile=Math.round(below/stats.players*100);
     }
   }catch(e){
     // The made-up sample crowd is only for previews. On the real site, say the comparison is unavailable.
-    if(/claude|anthropic/.test(location.hostname)||location.protocol==="file:"){ stats=sampleStats(results); sample=true; }
-    else { $("compare").innerHTML=`<p class="hint">Today's comparison isn't available right now. Your result is saved on this device.</p>`; return; }
+    if(/claude|anthropic/.test(location.hostname)||location.protocol==="file:"){ stats=sampleStats(results); stats.counted=true; sample=true; }
+    else stats={players:0,counted:false,offline:true};
   }
   renderCompare(stats,mine,sample);
 }
@@ -663,40 +664,51 @@ function sampleStats(res){
   return statsFrom(players.map(c=>({d1:c[0],d2:c[1],d3:c[2],total:c[0]+c[1]+c[2]})),res.reduce((a,r)=>a+r.dist,0));
 }
 function statsFrom(rows,myTotal){
-  const N=rows.length, pick=k=>{const v=rows.map(r=>r[k]).sort((a,b)=>a-b);return {avg:Math.round(v.reduce((a,b)=>a+b,0)/N),p90:v[Math.floor(.9*(N-1))]};};
+  const N=rows.length, pick=k=>{const v=rows.map(r=>r[k]).sort((a,b)=>a-b);return {avg:Math.round(v.reduce((a,b)=>a+b,0)/N),p90:v[Math.ceil(.9*(N-1))]};};
   const max=Math.max(...rows.map(r=>r.total)), size=Math.max(50,Math.ceil(max/12/50)*50), counts=new Array(Math.floor(max/size)+1).fill(0);
   rows.forEach(r=>counts[Math.floor(r.total/size)]++);
   return {players:N,percentile:N>1?Math.round(rows.filter(r=>r.total<myTotal).length/(N-1)*100):100,casts:["d1","d2","d3"].map(pick),total:pick("total"),hist:{size,counts}};
 }
 function renderCompare(st,mine,sample){
   const box=$("compare"); box.innerHTML="";
-  const when=MODE==="today"?"today":"that day";
-  if(!st.players||!st.hist){box.innerHTML=`<p class="hint">Nobody else's results are in for ${when} yet.</p>`;return;}
+  const today=MODE==="today", N=st.players||0, others=st.counted?N-1:N, hasCrowd=N>0&&st.hist;
+  // headline: never claim "first" unless this round is actually the only one counted
   const h=document.createElement("p"); h.className="pct";
-  h.innerHTML=st.players>1?`Further than <b></b> of ${st.players.toLocaleString()} anglers ${when}`:`You're the first angler out ${when}`;
-  if(st.players>1) h.querySelector("b").textContent=st.percentile+"%";
+  if(st.offline) h.textContent="Can't reach the game's server right now, so there's no comparison yet.";
+  else if(today&&st.counted&&N===1) h.textContent="You're the first angler out today";
+  else if(today&&st.counted) h.innerHTML=`Further than <b></b> of ${others.toLocaleString()} other angler${others===1?"":"s"} today`;
+  else if(today&&!st.counted) h.textContent=N?`Your round hasn't reached the server yet. Here's how ${N} angler${N===1?"":"s"} did today.`:"Your round hasn't reached the server yet, and no one else has played today.";
+  else if(N) h.innerHTML=`You'd be further than <b></b> of the ${N.toLocaleString()} angler${N===1?"":"s"} who played that day`;
+  else h.textContent="No other anglers played this day, so here's just your round.";
+  const b=h.querySelector("b"); if(b) b.textContent=st.percentile+"%";
   box.appendChild(h);
-  // pixel histogram of everyone's totals, your bar lit
-  const cv=document.createElement("canvas"); cv.className="hist"; const W=120,H=34; cv.width=W; cv.height=H; box.appendChild(cv);
-  const c=cv.getContext("2d"), n=st.hist.counts.length, bw=Math.floor(W/n), top=Math.max(...st.hist.counts), mineB=Math.floor(mine.total/st.hist.size);
-  st.hist.counts.forEach((v,i)=>{const bh=v?Math.max(1,Math.round(v/top*(H-6))):0;c.fillStyle=i===mineB?"#ff8f4a":"#2b5c63";c.fillRect(i*bw+1,H-4-bh,bw-1,bh);});
-  c.fillStyle="#a9bcbc"; c.fillRect(0,H-3,W,1);
-  if(mineB<n){c.fillStyle="#ff8f4a";c.fillRect(mineB*bw+Math.floor(bw/2)-1,H-2,2,2);}
-  const axis=document.createElement("div"); axis.className="axis"; axis.innerHTML=`<span>0 m</span><span>${(n*st.hist.size).toLocaleString()} m</span>`; box.appendChild(axis);
-  // per-cast table
+  if(hasCrowd){
+    // pixel histogram of everyone's totals, your bar lit
+    const cv=document.createElement("canvas"); cv.className="hist"; const W=120,H=34; cv.width=W; cv.height=H; box.appendChild(cv);
+    const c=cv.getContext("2d"), n=Math.max(st.hist.counts.length,Math.floor(mine.total/st.hist.size)+1), bw=Math.floor(W/n), top=Math.max(1,...st.hist.counts), mineB=Math.floor(mine.total/st.hist.size);
+    for(let i=0;i<n;i++){const v=st.hist.counts[i]||0, bh=v?Math.max(1,Math.round(v/top*(H-6))):0; c.fillStyle=i===mineB?"#ff8f4a":"#2b5c63"; c.fillRect(i*bw+1,H-4-bh,bw-1,bh);}
+    c.fillStyle="#a9bcbc"; c.fillRect(0,H-3,W,1);
+    c.fillStyle="#ff8f4a"; c.fillRect(mineB*bw+Math.floor(bw/2)-1,H-2,2,2);
+    const axis=document.createElement("div"); axis.className="axis"; axis.innerHTML=`<span>0 m</span><span>${(n*st.hist.size).toLocaleString()} m</span>`; box.appendChild(axis);
+  }
+  // per-cast table: your numbers always; average and top 10% only when there's a crowd to compare with
   const t=document.createElement("table"); t.className="cmp";
-  t.innerHTML=`<thead><tr><th>Cast</th><th>You</th><th>Avg</th><th>Top 10%</th></tr></thead><tbody></tbody>`;
+  t.innerHTML=hasCrowd?`<thead><tr><th>Cast</th><th>You</th><th>Avg</th><th>Top 10%</th></tr></thead><tbody></tbody>`:`<thead><tr><th>Cast</th><th>Answers</th><th>You</th></tr></thead><tbody></tbody>`;
   const tb=t.querySelector("tbody");
-  const row=(label,you,s,strong)=>{const tr=document.createElement("tr"); if(strong) tr.className="tot";
-    [label,you+" m",s.avg+" m",s.p90+" m"].forEach((v,i)=>{const td=document.createElement("td");td.textContent=v;if(i===1)td.className=you>=s.p90?"top":you>=s.avg?"up":"down";tr.appendChild(td);});tb.appendChild(tr);};
-  results.forEach((r,i)=>row(r.cat,[mine.d1,mine.d2,mine.d3][i],st.casts[i]));
-  row("Total",mine.total,st.total,true);
+  const row=(label,you,s,count,strong)=>{const tr=document.createElement("tr"); if(strong) tr.className="tot";
+    const cells=hasCrowd?[label,you+" m",s.avg+" m",s.p90+" m"]:[label,count==null?"":String(count),you+" m"];
+    cells.forEach((v,i)=>{const td=document.createElement("td");td.textContent=v;if(hasCrowd&&i===1)td.className=you>=s.p90?"top":you>=s.avg?"up":"down";tr.appendChild(td);});tb.appendChild(tr);};
+  results.forEach((r,i)=>row(r.cat,[mine.d1,mine.d2,mine.d3][i],hasCrowd&&st.casts[i],r.n));
+  row("Total",mine.total,hasCrowd&&st.total,results.reduce((a,r)=>a+(r.n||0),0),true);
   box.appendChild(t);
   const note=document.createElement("p"); note.className="note";
-  note.textContent=sample?"Sample crowd for this preview. Real comparisons appear once the game is hosted.":MODE==="archive"?"Archive round: compared with that day's anglers, not added to their results.":"One round a day. Come back tomorrow for a new puzzle.";
+  note.textContent=sample?"Sample crowd for this preview. Real comparisons appear once the game is hosted."
+    :st.offline?(today?"Your round is saved and will be counted automatically once the server is reachable.":"Here's how you did.")
+    :!today?"Archive rounds are compared with that day's anglers but don't change their results."
+    :st.counted?"One round a day. Come back tomorrow for a new puzzle."
+    :"It will be sent and counted automatically next time the game can reach the server.";
   box.appendChild(note);
-  const pctLine=st.players>1?` · further than ${st.percentile}%`:"";
-  if(!sample) $("share").textContent=$("share").textContent.replace(/total$/,"total"+pctLine);
+  if(!sample&&today&&st.counted&&N>1) $("share").textContent=$("share").textContent.replace(/total$/,`total · further than ${st.percentile}%`);
 }
 $("copy").onclick=async()=>{
   const t=$("share").textContent;
@@ -710,8 +722,23 @@ $("start").onclick=startCast;
 let MODE="today", TODAY=null;
 const resKey=id=>"longcast-result-"+id;
 function saveResult(){
-  try{localStorage.setItem(resKey(DAY.id),JSON.stringify({casts:results.map(r=>({cat:r.cat,dist:r.dist,n:r.n,fish:r.fish?{id:r.fish.f.id,cm:r.fish.cm,lucky:r.fish.lucky}:null}))}));}catch(e){}
+  // answers are kept so a round that failed to reach the server can be sent again later
+  try{localStorage.setItem(resKey(DAY.id),JSON.stringify({mode:MODE,sent:false,casts:results.map(r=>({cat:r.cat,dist:r.dist,n:r.n,answers:r.answers||[],fish:r.fish?{id:r.fish.f.id,cm:r.fish.cm,lucky:r.fish.lucky}:null}))}));}catch(e){}
   syncResults();
+}
+function savedMeta(id){try{return JSON.parse(localStorage.getItem(resKey(id))||"null");}catch(e){return null;}}
+function markSent(id){const j=savedMeta(id); if(j&&!j.sent){j.sent=true; try{localStorage.setItem(resKey(id),JSON.stringify(j));}catch(e){}}}
+// a "today" round that never reached the server, and still has its answers, can be sent again
+const needsSending=j=>!!j&&j.mode==="today"&&j.sent===false&&j.casts&&j.casts.every(c=>Array.isArray(c.answers));
+async function sendRound(day,j){
+  const best=j.casts.reduce((b,c)=>{const f=c.fish&&FISH.find(x=>x.id===c.fish.id);return f&&TIERS.indexOf(f.tier)>TIERS.indexOf(b||"")?f.tier:b;},null);
+  const sub=await api("score",{method:"POST",body:JSON.stringify({player:PLAYER,day,bestTier:best,casts:j.casts.map(c=>({answers:c.answers}))})});
+  markSent(day); return sub;
+}
+async function retryUnsent(){
+  if(!PLAYER) return;
+  let days=[]; try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i); if(k&&k.startsWith("longcast-result-")) days.push(k.slice(16));}}catch(e){return;}
+  for(const d of days){ const j=savedMeta(d); if(needsSending(j)&&(!TODAY||d!==TODAY.id)){ try{await sendRound(d,j);}catch(e){return;} } }
 }
 // Back up finished rounds under the player id and pull down any from other devices (via angler code).
 async function syncResults(){
@@ -726,7 +753,7 @@ async function syncResults(){
 const withTimeout=(p,ms)=>Promise.race([p,new Promise(r=>setTimeout(r,ms))]);
 function savedResult(id){
   try{const j=JSON.parse(localStorage.getItem(resKey(id))||"null"); if(!j) return null;
-    return j.casts.map(c=>{const f=c.fish&&FISH.find(x=>x.id===c.fish.id); return {cat:c.cat,dist:c.dist,n:c.n,answers:[],fish:f?{f,cm:c.fish.cm,lucky:c.fish.lucky}:null};});
+    return j.casts.map(c=>{const f=c.fish&&FISH.find(x=>x.id===c.fish.id); return {cat:c.cat,dist:c.dist,n:c.n,answers:c.answers||[],fish:f?{f,cm:c.fish.cm,lucky:c.fish.lucky}:null};});
   }catch(e){return null;}
 }
 function updateNextIn(){
@@ -775,7 +802,7 @@ async function openArchive(){
 $("pastBtn").onclick=openArchive; $("pastBtn2").onclick=openArchive;
 $("closeArchive").onclick=()=>showPanel(prevPanel);
 $("todayBtn").onclick=goToday;
-(async()=>{ await Promise.all([loadPuzzle(),withTimeout(syncResults(),2500)]); TODAY=DAY; setDayLabel(); const prev=savedResult(DAY.id); if(prev){results=prev; finish(true);} })();
+(async()=>{ await Promise.all([loadPuzzle(),withTimeout(syncResults(),2500)]); TODAY=DAY; setDayLabel(); const prev=savedResult(DAY.id); if(prev){results=prev; finish(true);} retryUnsent(); })();
 
 // ---------- angler code: move progress between devices without logging in ----------
 $("showCode").onclick=async()=>{

@@ -8,7 +8,7 @@ export async function onRequestPost({ request, env }) {
   const { player, results } = body || {};
   if (!isPlayer(player)) return json({ error: "Missing or invalid player id" }, 400);
   const entries = Object.entries(results && typeof results === "object" ? results : {})
-    .filter(([day, data]) => isDay(day) && typeof data === "string" && data.length <= 4000)
+    .filter(([day, data]) => isDay(day) && typeof data === "string" && data.length <= 12000)
     .slice(0, 400);
   if (entries.length) {
     const stmt = env.DB.prepare("INSERT OR IGNORE INTO results (player, day, data) VALUES (?, ?, ?)");
