@@ -720,9 +720,9 @@ async function openArchive(){
   box.innerHTML="";
   days.forEach(d=>{
     const prev=savedResult(d.day), b=document.createElement("button"); b.type="button"; b.className="day"+(prev?" done":"");
-    b.innerHTML=`<span class="when"></span><span class="cats"></span><span class="st"></span>`;
-    b.querySelector(".when").textContent=new Date(d.day+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}).replace(",","");
-    b.querySelector(".cats").textContent=d.cats.join(" · ");
+    // date only: showing the categories would let players prepare before playing
+    b.innerHTML=`<span class="cats"></span><span class="st"></span>`;
+    b.querySelector(".cats").textContent=new Date(d.day+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
     const st=b.querySelector(".st"); if(prev){st.textContent=prev.reduce((a,r)=>a+r.dist,0)+" m ✓";} else {st.textContent="Play";st.classList.add("play");}
     b.onclick=async()=>{
       let pz=null;
