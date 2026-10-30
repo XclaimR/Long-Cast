@@ -54,7 +54,7 @@ Setup (works from a phone browser):
 
 1. In dash.cloudflare.com, create a D1 database named `long-cast` (Storage & Databases > D1). In its Console, run the SQL in `schema.sql`.
 2. Copy the database ID from the D1 page into `wrangler.jsonc` under `d1_databases` (see below), and push.
-3. Create a Worker from this repo (Workers & Pages > Create > Import a repository). Leave the build command empty and the deploy command as `npx wrangler deploy`. The Worker name must match `name` in `wrangler.jsonc` (`long-cast`).
+3. Create a Worker from this repo (Workers & Pages > Create > Import a repository). Leave the build command empty and the deploy command as `npx wrangler deploy`. The Worker name must match `name` in `wrangler.jsonc` (`longcast`). The game is live at https://longcast.xclaimr.workers.dev.
 
 ```jsonc
 "d1_databases": [{ "binding": "DB", "database_name": "long-cast", "database_id": "<id from the D1 page>" }]

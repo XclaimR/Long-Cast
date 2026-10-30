@@ -1,7 +1,8 @@
 {
   // Cloudflare Worker: serves the game and the /api endpoints.
-  "name": "long-cast",
+  "name": "longcast",
   "main": "src/worker.js",
   "compatibility_date": "2025-01-01",
+  "d1_databases": [{ "binding": "DB", "database_name": "long-cast", "database_id": "2105beba-1bfe-47ac-874a-063ae1e74803" }],
   "assets": { "directory": ".", "binding": "ASSETS" }
 }
