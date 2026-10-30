@@ -233,7 +233,7 @@ pre{font-family:var(--mono);font-size:.75rem;background:var(--panel);border:3px 
     <ul class="rules">
       <li><b class="c1">Common</b> answers are a breeze: +25 m. <b class="c2">Uncommon</b> is a wind: +45 m. <b class="c3">Rare</b> is a gale: +80 m.</li>
       <li>Land 3 answers within 6 seconds to catch a tailwind: ×1.5 for 5 seconds.</li>
-      <li>You start with 20 seconds. Every correct answer adds time (2, 3 or 4 seconds by rarity, up to a full 20). Wrong or repeated answers tangle the line and cost time. When you run out of ideas, the line falls.</li>
+      <li>You start with 30 seconds. Every correct answer adds time (2, 3 or 4 seconds by rarity, up to a full 30). Wrong or repeated answers tangle the line and cost time. When you run out of ideas, the line falls.</li>
       <li>Further casts reach rarer fish: common, uncommon, rare, then legendary. Any cast can get a lucky bite, so keep filling your log book.</li>
     </ul>
   </section>
@@ -292,9 +292,9 @@ let DAY = {
   ]
 };
 const PTS={1:25,2:45,3:80}, WIND=["","breeze","wind","gale"];
-// Timer bank: start with 20 s, correct answers add time (by rarity), capped at 20 s.
+// Timer bank: start with 30 s, correct answers add time (by rarity), capped at 30 s.
 // Bonuses shrink 10% after every 10 answers in a cast, so every round ends eventually.
-const START_SECS=20, MAX_BANK=20, TIME_BONUS={1:2,2:3,3:4};
+const START_SECS=30, MAX_BANK=30, TIME_BONUS={1:2,2:3,3:4};
 
 // Fish by rarity tier: c common, u uncommon, r rare, l legendary
 const FISH=[
