@@ -11,6 +11,7 @@ Env:
   DAYS_AHEAD         how many days ahead to keep ready (default: 2)
   FAKE_RESPONSE_DIR  testing only: read model replies from <dir>/<n>.json
 """
+import base64
 import datetime as dt
 import json
 import os
@@ -41,6 +42,31 @@ def norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", s)
 
 
+# ---------- puzzle files ----------
+# Puzzle files are lightly encoded so categories and answers don't show up as plain
+# text in the browser's network tab or page source. This only stops casual peeking:
+# the game has to decode them, so a determined player could too.
+KEY = b"longcast-v1"
+
+
+def encode_puzzle(puzzle):
+    raw = json.dumps(puzzle, ensure_ascii=False, separators=(",", ":")).encode()
+    mixed = bytes(b ^ KEY[i % len(KEY)] for i, b in enumerate(raw))
+    return json.dumps({"v": 1, "data": base64.b64encode(mixed).decode()})
+
+
+def decode_puzzle(text):
+    obj = json.loads(text)
+    if "data" not in obj:
+        return obj  # older plain file
+    mixed = base64.b64decode(obj["data"])
+    return json.loads(bytes(b ^ KEY[i % len(KEY)] for i, b in enumerate(mixed)).decode())
+
+
+def puzzle_files():
+    return sorted(PUZZLES.glob("????-??-??.json"))
+
+
 # ---------- category choice ----------
 def load_bank():
     groups = {}
@@ -54,8 +80,20 @@ def load_bank():
 
 
 def load_index():
-    p = PUZZLES / "index.json"
-    return json.loads(p.read_text()) if p.exists() else {"days": []}
+    """Every day's categories, read from the puzzle files (index.json itself only lists dates)."""
+    days = []
+    for f in puzzle_files():
+        try:
+            days.append({"day": f.stem, "cats": [c["cat"] for c in decode_puzzle(f.read_text())["casts"]]})
+        except (ValueError, KeyError):
+            pass
+    return {"days": sorted(days, key=lambda d: d["day"], reverse=True)}
+
+
+def write_index():
+    """Public list for the Past puzzles screen: dates only, so categories stay hidden."""
+    days = [{"day": f.stem} for f in sorted(puzzle_files(), reverse=True)]
+    (PUZZLES / "index.json").write_text(json.dumps({"days": days}, separators=(",", ":")))
 
 
 def recent_categories(index, day):
@@ -186,12 +224,11 @@ def validate(puzzle, wanted):
 def write_day(day, casts, index):
     label = f"{day.day} {day.strftime('%b')}"
     puzzle = {"id": day.isoformat(), "label": label, "casts": casts}
-    text = json.dumps(puzzle, ensure_ascii=False, separators=(",", ":"))
-    (PUZZLES / f"{day.isoformat()}.json").write_text(text)
+    (PUZZLES / f"{day.isoformat()}.json").write_text(encode_puzzle(puzzle))
     index["days"] = [d for d in index["days"] if d["day"] != day.isoformat()]
     index["days"].append({"day": day.isoformat(), "cats": [c["cat"] for c in casts]})
     index["days"].sort(key=lambda d: d["day"], reverse=True)
-    (PUZZLES / "index.json").write_text(json.dumps(index, ensure_ascii=False, separators=(",", ":")))
+    write_index()
 
 
 def update_latest(today):
@@ -203,8 +240,8 @@ def update_latest(today):
 
 
 def example_cast():
-    files = sorted(PUZZLES.glob("????-??-??.json"))
-    cast = json.loads(files[0].read_text())["casts"][0]
+    files = puzzle_files()
+    cast = decode_puzzle(files[0].read_text())["casts"][0]
     short = {k: (v[:6] if isinstance(v, list) else v) for k, v in cast.items()}
     return json.dumps(short, ensure_ascii=False)
 
@@ -271,9 +308,27 @@ def cmd_add(day_str, path):
     print(f"added {day_str}: " + " / ".join(f"{c['cat']} ({len(c['c'])}/{len(c['u'])}/{len(c['r'])})" for c in casts))
 
 
+def cmd_show(day_str):
+    """Print a day's decoded puzzle, for checking it by hand."""
+    print(json.dumps(decode_puzzle((PUZZLES / f"{day_str}.json").read_text()), ensure_ascii=False, indent=1))
+
+
+def cmd_encode_all():
+    """Re-encode every puzzle file and rewrite index.json (safe to run more than once)."""
+    for f in puzzle_files() + [PUZZLES / "latest.json"]:
+        if f.exists():
+            f.write_text(encode_puzzle(decode_puzzle(f.read_text())))
+    write_index()
+    print(f"encoded {len(puzzle_files())} puzzles")
+
+
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "plan":
         return cmd_plan()
+    if len(sys.argv) == 3 and sys.argv[1] == "show":
+        return cmd_show(sys.argv[2])
+    if len(sys.argv) == 2 and sys.argv[1] == "encode-all":
+        return cmd_encode_all()
     if len(sys.argv) == 4 and sys.argv[1] == "add":
         return cmd_add(sys.argv[2], sys.argv[3])
     today = dt.datetime.now(dt.timezone.utc).date()

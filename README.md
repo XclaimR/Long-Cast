@@ -9,9 +9,9 @@ Open `index.html` in a browser, or play the hosted version on GitHub Pages.
 ## How it works
 
 - `index.html` is the whole game (HTML, CSS and JavaScript, no build step).
-- `puzzles/YYYY-MM-DD.json` holds each day's three categories, with answers split into common (`c`), uncommon (`u`) and rare (`r`). Alternate spellings are separated by `|`.
+- `puzzles/YYYY-MM-DD.json` holds each day's three categories, with answers split into common (`c`), uncommon (`u`) and rare (`r`). Alternate spellings are separated by `|`. The files are lightly encoded so players can't read the categories in the browser before playing; run `python3 scripts/generate_puzzle.py show YYYY-MM-DD` to see one in plain text.
 - `puzzles/latest.json` is the fallback puzzle when there is no file for today.
-- `puzzles/index.json` lists past days for the archive.
+- `puzzles/index.json` lists the days for the Past puzzles screen. It holds dates only, no categories.
 - Progress (log book, results) is saved in the browser's localStorage.
 
 ## Daily puzzles (automatic)
@@ -33,4 +33,8 @@ Add lines to `categories.txt` as `group: Category name`.
 
 ### Adding a puzzle by hand
 
-Add `puzzles/YYYY-MM-DD.json` in the same shape as the existing files and add the day to `puzzles/index.json`. The script never overwrites a day that already has a file.
+Write the puzzle as plain JSON (`{"casts":[{"cat","hint","c","u","r"}, ...]}`) and run `python3 scripts/generate_puzzle.py add YYYY-MM-DD file.json`. It checks it, encodes it and updates `index.json`. The script never overwrites a day that already has a file.
+
+If you ever edit puzzle files directly, run `python3 scripts/generate_puzzle.py encode-all` afterwards to re-encode them and rebuild `index.json`.
+
+Encoding only stops casual peeking. The game has to decode puzzles to play them, so someone determined could still read them from the game's code.

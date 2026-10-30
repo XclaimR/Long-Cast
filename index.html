@@ -436,9 +436,16 @@ async function syncLog(){
   }catch(e){}
 }
 const localDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;};
+// Puzzle files are lightly encoded so categories don't show as plain text before playing.
+const PKEY=new TextEncoder().encode("longcast-v1");
+function decodePuzzle(j){
+  if(!j||!j.data) return j;
+  const b=Uint8Array.from(atob(j.data),c=>c.charCodeAt(0)).map((x,i)=>x^PKEY[i%PKEY.length]);
+  return JSON.parse(new TextDecoder().decode(b));
+}
 async function loadPuzzle(){
   for(const u of [`api/puzzle?day=${localDate()}`,`puzzles/${localDate()}.json`,"puzzles/latest.json"]){
-    try{ const r=await fetch(u); if(r.ok&&(r.headers.get("content-type")||"").includes("json")){ DAY=await r.json(); break; } }catch(e){}
+    try{ const r=await fetch(u); if(r.ok&&(r.headers.get("content-type")||"").includes("json")){ DAY=decodePuzzle(await r.json()); break; } }catch(e){}
   }
   const d=new Date(DAY.id+"T12:00:00");
   $("dateLabel").textContent=d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}).replace(",","");
@@ -727,7 +734,7 @@ async function openArchive(){
     b.onclick=async()=>{
       let pz=null;
       try{ pz=await api(`puzzle?day=${d.day}`); }
-      catch(e){ try{ const r=await fetch(`puzzles/${d.day}.json`); if(r.ok) pz=await r.json(); }catch(e2){} }
+      catch(e){ try{ const r=await fetch(`puzzles/${d.day}.json`); if(r.ok) pz=decodePuzzle(await r.json()); }catch(e2){} }
       if(pz) openDay(pz,"archive"); else st.textContent="Try again";
     };
     box.appendChild(b);
