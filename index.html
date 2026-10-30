@@ -632,7 +632,11 @@ async function submitAndCompare(total,submit){
       const b=Math.floor(mine.total/stats.hist.size), below=stats.hist.counts.slice(0,b).reduce((a,v)=>a+v,0)+(stats.hist.counts[b]||0)/2;
       stats.percentile=Math.round(below/stats.players*100);
     }
-  }catch(e){ stats=sampleStats(results); sample=true; }
+  }catch(e){
+    // The made-up sample crowd is only for previews. On the real site, say the comparison is unavailable.
+    if(/claude|anthropic/.test(location.hostname)||location.protocol==="file:"){ stats=sampleStats(results); sample=true; }
+    else { $("compare").innerHTML=`<p class="hint">Today's comparison isn't available right now. Your result is saved on this device.</p>`; return; }
+  }
   renderCompare(stats,mine,sample);
 }
 function sampleStats(res){
